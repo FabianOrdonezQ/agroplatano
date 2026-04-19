@@ -1,0 +1,2890 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroPlátano — Control Integral de Cultivo</title>
+
+<!-- Firebase SDK v10 compat -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
+
+:root {
+  --verde-oscuro: #1a3a2a;
+  --verde-medio: #2d5a3d;
+  --verde-vivo: #3d8b5e;
+  --verde-claro: #6ab187;
+  --verde-menta: #a8d5b5;
+  --crema: #f5f0e8;
+  --arena: #e8dcc8;
+  --tierra: #8b6b47;
+  --amarillo-platano: #f5c842;
+  --amarillo-suave: #fef3c7;
+  --naranja: #e8833a;
+  --rojo: #c0392b;
+  --azul-dato: #2980b9;
+  --gris-texto: #4a5568;
+  --blanco: #ffffff;
+  --sombra: 0 4px 24px rgba(26,58,42,0.10);
+  --sombra-hover: 0 8px 32px rgba(26,58,42,0.18);
+  --radio: 14px;
+  --radio-sm: 8px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--crema);
+  color: var(--gris-texto);
+  min-height: 100vh;
+}
+
+/* ─── HEADER ─── */
+.app-header {
+  background: var(--verde-oscuro);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.25);
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-icon {
+  width: 38px; height: 38px;
+  background: var(--amarillo-platano);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+}
+.logo-text {
+  font-family: 'Fraunces', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--blanco);
+  letter-spacing: -0.5px;
+}
+.logo-sub {
+  font-size: 10px;
+  color: var(--verde-menta);
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  display: block;
+  margin-top: -2px;
+}
+.header-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--verde-menta);
+}
+.btn-reset-header {
+  background: rgba(192,57,43,0.18);
+  border: 1.5px solid rgba(192,57,43,0.5);
+  color: #fca5a5;
+  padding: 7px 16px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-reset-header:hover {
+  background: var(--rojo);
+  border-color: var(--rojo);
+  color: #fff;
+}
+
+/* ─── NAV ─── */
+.nav-tabs {
+  background: var(--verde-medio);
+  display: flex;
+  gap: 2px;
+  padding: 0 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-tabs::-webkit-scrollbar { display: none; }
+.nav-tab {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.65);
+  padding: 13px 22px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+  display: flex; align-items: center; gap: 7px;
+}
+.nav-tab:hover { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.07); }
+.nav-tab.active { color: var(--amarillo-platano); border-bottom-color: var(--amarillo-platano); background: rgba(255,255,255,0.05); }
+
+/* ─── LAYOUT ─── */
+.app-body { padding: 28px 32px; max-width: 1440px; margin: 0 auto; }
+.section { display: none; animation: fadeUp 0.35s ease; }
+.section.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp { from { opacity:0; transform:translateX(-50%) translateY(20px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+
+/* ─── CARDS ─── */
+.card {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  padding: 24px;
+  margin-bottom: 22px;
+  box-shadow: var(--sombra);
+  border: 1px solid rgba(26,58,42,0.07);
+}
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--verde-oscuro);
+  margin-bottom: 18px;
+  display: flex; align-items: center; gap: 9px;
+}
+.card-title .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--verde-vivo);
+}
+
+/* ─── KPI GRID ─── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.kpi {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  padding: 20px 22px;
+  box-shadow: var(--sombra);
+  border: 1px solid rgba(26,58,42,0.07);
+  border-top: 4px solid var(--verde-vivo);
+  position: relative;
+  overflow: hidden;
+}
+.kpi::after {
+  content: '';
+  position: absolute;
+  right: -10px; bottom: -10px;
+  width: 70px; height: 70px;
+  border-radius: 50%;
+  background: rgba(106,177,135,0.08);
+}
+.kpi.kpi-income { border-top-color: var(--verde-vivo); }
+.kpi.kpi-cost { border-top-color: var(--naranja); }
+.kpi.kpi-balance { border-top-color: var(--azul-dato); }
+.kpi.kpi-warn { border-top-color: var(--amarillo-platano); }
+.kpi.kpi-mano { border-top-color: var(--tierra); }
+.kpi.kpi-ferti { border-top-color: #9b59b6; }
+.kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-family: 'DM Mono', monospace;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--verde-oscuro);
+  line-height: 1.1;
+}
+.kpi-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+/* ─── TABLES ─── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(--verde-oscuro); }
+th {
+  padding: 11px 14px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.8);
+}
+td {
+  padding: 10px 14px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--gris-texto);
+}
+tbody tr:hover { background: #f8fffe; }
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.b-preparacion { background: #fde68a; color: #92400e; }
+.b-siembra { background: #d1fae5; color: #065f46; }
+.b-manoobra { background: #fee2e2; color: #991b1b; }
+.b-insumos { background: #e0e7ff; color: #3730a3; }
+.b-fertilizacion { background: #f3e8ff; color: #6b21a8; }
+.b-otros { background: #fef3c7; color: #92400e; }
+.b-materiales { background: #dbeafe; color: #1e40af; }
+.b-activos { background: #fce7f3; color: #9d174d; }
+.b-ingresos { background: #d1fae5; color: #065f46; }
+
+/* ─── FORMS ─── */
+.form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+label { font-size: 12px; font-weight: 600; color: var(--verde-oscuro); text-transform: uppercase; letter-spacing: 0.5px; }
+input, select, textarea {
+  padding: 10px 13px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--radio-sm);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  background: var(--blanco);
+  color: var(--gris-texto);
+  transition: border-color 0.2s;
+}
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--verde-vivo); box-shadow: 0 0 0 3px rgba(61,139,94,0.12); }
+
+/* ─── BUTTONS ─── */
+.btn {
+  padding: 10px 22px;
+  border-radius: var(--radio-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-primary { background: var(--verde-vivo); color: var(--blanco); }
+.btn-primary:hover { background: var(--verde-medio); transform: translateY(-1px); box-shadow: var(--sombra-hover); }
+.btn-danger { background: #fee2e2; color: var(--rojo); }
+.btn-danger:hover { background: var(--rojo); color: var(--blanco); }
+.btn-sm { padding: 6px 13px; font-size: 12px; }
+.btn-outline { background: transparent; border: 1.5px solid var(--verde-vivo); color: var(--verde-vivo); }
+.btn-outline:hover { background: var(--verde-vivo); color: var(--blanco); }
+
+/* ─── CHART BARS ─── */
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 180px;
+  padding: 0 4px 24px;
+  border-bottom: 2px solid #e2e8f0;
+  position: relative;
+}
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.bar-inner {
+  width: 100%;
+  border-radius: 5px 5px 0 0;
+  min-height: 4px;
+  transition: height 0.6s cubic-bezier(.34,1.56,.64,1);
+  position: relative;
+}
+.bar-inner:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: 102%; left: 50%;
+  transform: translateX(-50%);
+  background: var(--verde-oscuro);
+  color: #fff;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  z-index: 9;
+}
+.bar-lbl { font-size: 10px; color: #94a3b8; text-align: center; }
+
+/* ─── DONUT ─── */
+.donut-wrap { display: flex; align-items: center; gap: 30px; flex-wrap: wrap; }
+.donut-svg { flex-shrink: 0; }
+.donut-legend { flex: 1; min-width: 200px; }
+.legend-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f1f5f9; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.legend-name { font-size: 13px; color: var(--gris-texto); flex: 1; }
+.legend-pct { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--verde-oscuro); font-weight: 500; }
+.legend-val { font-family: 'DM Mono', monospace; font-size: 11px; color: #94a3b8; }
+
+/* ─── GANTT ─── */
+#gantt-container {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radio-sm);
+  border: 1px solid #e2e8f0;
+}
+.gantt-header {
+  display: grid;
+  background: var(--verde-oscuro);
+  color: rgba(255,255,255,0.8);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+.gantt-header-label { padding: 10px 14px; min-width: 200px; }
+.gantt-month-header { text-align: center; padding: 10px 4px; font-size: 9px; }
+.gantt-row {
+  display: grid;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+}
+.gantt-row:hover { background: #f0fdf4; }
+.gantt-row.phase-row { background: #f8fafc; }
+.gantt-row.task-row { }
+.gantt-label {
+  padding: 9px 14px;
+  font-size: 12px;
+  color: var(--verde-oscuro);
+  font-weight: 500;
+  min-width: 200px;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.gantt-label.phase { font-weight: 700; font-family: 'Fraunces', serif; font-size: 13px; color: var(--verde-medio); }
+.gantt-label.indent { padding-left: 28px; font-weight: 400; color: var(--gris-texto); }
+.gantt-cell {
+  border-right: 1px solid #f1f5f9;
+  position: relative;
+  min-height: 36px;
+  cursor: pointer;
+}
+.gantt-bar {
+  position: absolute;
+  top: 6px; bottom: 6px;
+  border-radius: 4px;
+  transition: filter 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.9);
+  overflow: hidden;
+  cursor: pointer;
+}
+.gantt-bar:hover { filter: brightness(1.12); }
+.gantt-progress {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: rgba(255,255,255,0.25);
+  border-radius: 4px 0 0 4px;
+}
+.gantt-bar.phase-bar { background: var(--verde-vivo); }
+.gantt-bar.task-bar { background: var(--verde-claro); }
+.gantt-bar.done { background: #64748b; }
+.gantt-bar.critical { background: var(--naranja); }
+.gantt-bar.milestone { background: var(--amarillo-platano); width: 16px !important; height: 16px !important; top: 50%; transform: translateY(-50%) rotate(45deg); border-radius: 2px; }
+.gantt-cost-badge {
+  position: absolute;
+  right: 4px; top: 50%; transform: translateY(-50%);
+  background: rgba(26,58,42,0.8);
+  color: #fff;
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+.gantt-today {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--naranja);
+  z-index: 3;
+  pointer-events: none;
+}
+.gantt-today::after {
+  content: 'HOY';
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 8px;
+  color: var(--naranja);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ─── PRATICAS ─── */
+.practic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.practic-card {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+.practic-header {
+  padding: 14px 18px;
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blanco);
+  display: flex; align-items: center; gap: 10px;
+}
+.ph-green { background: var(--verde-medio); }
+.ph-brown { background: var(--tierra); }
+.ph-blue { background: var(--azul-dato); }
+.ph-purple { background: #7c3aed; }
+.ph-orange { background: var(--naranja); }
+.ph-yellow { background: #d97706; }
+.practic-body { padding: 16px 18px; }
+.practic-item {
+  display: flex; gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f8fafc;
+  font-size: 12.5px;
+  color: var(--gris-texto);
+  line-height: 1.5;
+  align-items: flex-start;
+}
+.practic-item:last-child { border-bottom: none; }
+.practic-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+/* ─── FILTROS ─── */
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  align-items: center;
+}
+.filter-bar input, .filter-bar select { flex: 1; min-width: 150px; max-width: 240px; }
+
+/* ─── ALERT/INFO ─── */
+.alert {
+  padding: 12px 16px;
+  border-radius: var(--radio-sm);
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.alert-info { background: #eff6ff; border-left: 4px solid var(--azul-dato); color: #1e40af; }
+.alert-warn { background: var(--amarillo-suave); border-left: 4px solid var(--naranja); color: #92400e; }
+.alert-success { background: #d1fae5; border-left: 4px solid var(--verde-vivo); color: #065f46; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 768px) {
+  .app-body { padding: 16px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .nav-tab { padding: 11px 14px; font-size: 12px; }
+}
+
+/* ─── REPORT SECTION ─── */
+.report-month-selector { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.month-pill {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid #e2e8f0;
+  background: var(--blanco);
+  color: var(--gris-texto);
+  transition: all 0.2s;
+}
+.month-pill.active, .month-pill:hover { border-color: var(--verde-vivo); background: var(--verde-vivo); color: var(--blanco); }
+
+/* ─── MINI METRIC ─── */
+.mini-metric { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.mini-metric:last-child { border-bottom: none; }
+.mini-metric-label { font-size: 12.5px; color: var(--gris-texto); }
+.mini-metric-val { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--verde-oscuro); }
+
+/* Progress bar */
+.prog-bar { height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+.prog-fill { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+
+/* Tab within section */
+.sub-tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.sub-tab { padding: 7px 18px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: #e2e8f0; color: var(--gris-texto); transition: all 0.2s; }
+.sub-tab.active { background: var(--verde-vivo); color: var(--blanco); }
+
+/* ─── MODAL ─── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--blanco); border-radius: var(--radio); padding: 28px; max-width: 480px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(0,0,0,0.25); }
+.modal-title { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 700; color: var(--verde-oscuro); margin-bottom: 20px; }
+.modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #94a3b8; }
+
+/* ─── GANTT controls ─── */
+.gantt-controls { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.gantt-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; }
+.gantt-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gris-texto); }
+.gantt-legend-box { width: 14px; height: 10px; border-radius: 2px; }
+
+/* ─── FIREBASE / CLOUD ─── */
+#setupScreen {
+  position: fixed; inset: 0; background: var(--verde-oscuro);
+  z-index: 10000; display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.setup-box {
+  background: #fff; border-radius: 20px; padding: 36px 32px;
+  max-width: 520px; width: 100%; box-shadow: 0 32px 80px rgba(0,0,0,0.4);
+}
+.setup-logo { text-align:center; margin-bottom: 24px; }
+.setup-logo .emoji { font-size: 52px; display:block; margin-bottom: 8px; }
+.setup-logo h1 { font-family:'Fraunces',serif; font-size:26px; color:var(--verde-oscuro); }
+.setup-logo p { font-size:13px; color:#94a3b8; margin-top:4px; }
+.setup-step { margin-bottom: 20px; }
+.setup-step-title {
+  font-size: 13px; font-weight: 700; color: var(--verde-oscuro);
+  text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px;
+  display:flex; align-items:center; gap:8px;
+}
+.step-num {
+  background: var(--verde-vivo); color:#fff; border-radius:50%;
+  width:22px; height:22px; display:inline-flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;
+}
+.setup-input { width:100%; margin-bottom:10px; }
+.setup-hint {
+  background: #f0fdf4; border: 1px solid #bbf7d0; border-radius:8px;
+  padding:10px 13px; font-size:11.5px; color:#166534; line-height:1.6;
+  margin-bottom: 14px;
+}
+.setup-hint a { color:var(--verde-vivo); font-weight:600; }
+.setup-divider { border:none; border-top:1px solid #e2e8f0; margin:18px 0; }
+.setup-footer { text-align:center; font-size:11px; color:#94a3b8; margin-top:14px; }
+.demo-btn {
+  width:100%; padding:10px; border-radius:8px; border:1.5px dashed #cbd5e1;
+  background:#f8fafc; color:#64748b; font-size:13px; font-weight:600;
+  cursor:pointer; margin-top:8px; transition:all 0.2s;
+}
+.demo-btn:hover { border-color:var(--verde-vivo); color:var(--verde-vivo); background:#f0fdf4; }
+
+/* Connection badge */
+#connBadge {
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;
+  cursor:default; transition:all 0.3s;
+}
+#connBadge.connected { background:rgba(61,139,94,0.2); color:#6ab187; }
+#connBadge.disconnected { background:rgba(192,57,43,0.2); color:#fca5a5; }
+#connBadge.connecting { background:rgba(245,200,66,0.2); color:#f5c842; }
+.conn-dot {
+  width:7px; height:7px; border-radius:50%;
+  background:currentColor; animation:pulse 1.5s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+#connBadge.connected .conn-dot { animation: none; }
+
+/* Sync spinner */
+.sync-spinner {
+  display:inline-block; width:12px; height:12px;
+  border:2px solid rgba(255,255,255,0.3); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.7s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* Auth bar */
+.auth-bar {
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,0.07); border-radius:8px;
+  padding:6px 12px; cursor:pointer; transition:background 0.2s;
+}
+.auth-bar:hover { background:rgba(255,255,255,0.13); }
+.auth-avatar {
+  width:26px; height:26px; border-radius:50%;
+  background:var(--amarillo-platano); display:flex; align-items:center;
+  justify-content:center; font-size:13px; font-weight:700; color:var(--verde-oscuro);
+  flex-shrink:0;
+}
+.auth-name { font-size:12px; color:rgba(255,255,255,0.85); font-weight:500; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="logo">
+    <div class="logo-icon">🍌</div>
+    <div>
+      <div class="logo-text">AgroPlátano</div>
+      <span class="logo-sub">Control Integral de Cultivo</span>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div class="header-meta" id="headerDate"></div>
+    <div id="connBadge" class="connecting" title="Estado de conexión con Firebase">
+      <span class="conn-dot"></span><span id="connText">Conectando…</span>
+    </div>
+    <div class="auth-bar" onclick="openAuthModal()" id="authBar" style="display:none">
+      <div class="auth-avatar" id="authAvatar">?</div>
+      <span class="auth-name" id="authName">Invitado</span>
+    </div>
+    <button class="btn-reset-header" onclick="confirmReset()" title="Borrar todos los datos y comenzar desde cero">🗑️ Limpiar datos</button>
+  </div>
+</header>
+
+<!-- MODAL CONFIRMACIÓN RESET -->
+<div class="modal-overlay" id="resetModal">
+  <div class="modal" style="max-width:420px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+    <div class="modal-title" style="text-align:center;color:var(--rojo)">¿Borrar todos los datos?</div>
+    <p style="font-size:13px;color:var(--gris-texto);margin-bottom:20px;line-height:1.6">
+      Esta acción eliminará <strong>todos los registros, transacciones y configuraciones</strong> de la aplicación y dejará la base de datos completamente en blanco.<br><br>
+      <strong style="color:var(--rojo)">Esta acción no se puede deshacer.</strong>
+    </p>
+    <div style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:8px;padding:12px;margin-bottom:20px;font-size:12px;color:#7f1d1d;text-align:left">
+      💡 <strong>Recomendación:</strong> Antes de borrar, exporta tus datos desde la sección <em>Registros → Exportar CSV</em> para conservar una copia.
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center">
+      <button class="btn btn-outline" onclick="document.getElementById('resetModal').classList.remove('open')" style="flex:1">Cancelar</button>
+      <button class="btn" onclick="executeReset()" style="flex:1;background:var(--rojo);color:#fff">Sí, borrar todo</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══ PANTALLA DE CONFIGURACIÓN FIREBASE ══ -->
+<div id="setupScreen">
+  <div class="setup-box">
+    <div class="setup-logo">
+      <span class="emoji">🍌</span>
+      <h1>AgroPlátano Cloud</h1>
+      <p>Conecta tu base de datos Firebase para sincronizar todo en la nube</p>
+    </div>
+
+    <div class="setup-hint">
+      🔒 Tus datos viajan cifrados y solo tú (y quienes autorices) pueden verlos.<br>
+      ¿No tienes Firebase aún? Sigue la guía en la parte inferior.
+    </div>
+
+    <div class="setup-step">
+      <div class="setup-step-title"><span class="step-num">1</span> API Key de Firebase</div>
+      <input class="setup-input" type="text" id="fbApiKey" placeholder="AIzaSy...">
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-title"><span class="step-num">2</span> Auth Domain</div>
+      <input class="setup-input" type="text" id="fbAuthDomain" placeholder="mi-proyecto.firebaseapp.com">
+    </div>
+    <div class="setup-step">
+      <div class="setup-step-title"><span class="step-num">3</span> Project ID</div>
+      <input class="setup-input" type="text" id="fbProjectId" placeholder="mi-proyecto-12345">
+    </div>
+
+    <button class="btn btn-primary" style="width:100%;justify-content:center;font-size:14px;padding:13px" onclick="connectFirebase()">
+      ☁️ Conectar a la nube
+    </button>
+
+    <button class="demo-btn" onclick="useLocalMode()">
+      💻 Usar sin nube (modo local)
+    </button>
+
+    <hr class="setup-divider">
+
+    <details style="font-size:12px;color:#64748b;cursor:pointer">
+      <summary style="font-weight:600;color:var(--verde-oscuro);margin-bottom:8px">📖 ¿Cómo consigo mis credenciales Firebase? (paso a paso)</summary>
+      <ol style="padding-left:18px;line-height:2">
+        <li>Ve a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
+        <li>Clic en <strong>"Crear proyecto"</strong> → escribe un nombre (ej: <em>agroplatano</em>) → continuar</li>
+        <li>Una vez creado, clic en <strong>"&lt;/&gt; Web"</strong> (agregar app web)</li>
+        <li>Dale un nombre (ej: <em>AgroApp</em>) → clic <strong>"Registrar app"</strong></li>
+        <li>Copia los valores de <code>apiKey</code>, <code>authDomain</code> y <code>projectId</code> y pégalos arriba</li>
+        <li>En el menú izquierdo: <strong>Build → Firestore Database → Crear base de datos</strong> (modo prueba)</li>
+        <li>En <strong>Authentication → Sign-in method</strong> → activa <strong>Correo/Contraseña</strong> y <strong>Google</strong></li>
+      </ol>
+      <p style="margin-top:8px">🎁 Firebase tiene <strong>plan gratuito generoso</strong> (50.000 lecturas/día, 20.000 escrituras/día) — más que suficiente para esta app.</p>
+    </details>
+
+    <div class="setup-footer">AgroPlátano v2 · Datos cifrados · Sin subscripción</div>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal" style="max-width:400px">
+    <button class="modal-close" onclick="closeAuthModal()">✕</button>
+    <div class="modal-title" id="authModalTitle">Iniciar sesión</div>
+    <div id="authModalBody">
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Correo electrónico</label>
+        <input type="email" id="authEmail" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="form-group" style="margin-bottom:18px">
+        <label>Contraseña</label>
+        <input type="password" id="authPass" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="doEmailAuth()">
+        Iniciar sesión
+      </button>
+      <div style="text-align:center;margin:14px 0;font-size:12px;color:#94a3b8">— o —</div>
+      <button class="btn" style="width:100%;justify-content:center;background:#fff;border:1.5px solid #e2e8f0;color:#374151" onclick="doGoogleAuth()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:18px"> Google
+      </button>
+      <div style="text-align:center;margin-top:14px">
+        <a href="#" onclick="toggleAuthMode()" style="font-size:12px;color:var(--verde-vivo)">¿No tienes cuenta? Regístrate</a>
+      </div>
+      <div id="authError" style="display:none;background:#fee2e2;color:#991b1b;border-radius:6px;padding:10px;margin-top:12px;font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="showSection('dashboard')">📊 Dashboard</button>
+  <button class="nav-tab" onclick="showSection('registros')">📋 Registros</button>
+  <button class="nav-tab" onclick="showSection('programacion')">📅 Programación / Gantt</button>
+  <button class="nav-tab" onclick="showSection('practicas')">🌿 Buenas Prácticas</button>
+  <button class="nav-tab" onclick="showSection('reportes')">📈 Reportes</button>
+</nav>
+
+<!-- BODY -->
+<div class="app-body">
+
+<!-- ══════════════════════════════════════════
+     SECCIÓN: DASHBOARD
+═══════════════════════════════════════════ -->
+<div id="dashboard" class="section active">
+
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;flex-wrap:wrap;" class="dash-grid">
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Costos por Categoría — Acumulado</div>
+      <canvas id="donutCanvas" width="160" height="160" style="display:none"></canvas>
+      <div class="donut-wrap">
+        <svg id="donutSvg" width="160" height="160" class="donut-svg" viewBox="0 0 160 160"></svg>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Gastos Mensuales (COP)</div>
+      <div class="chart-bars" id="monthlyBars"></div>
+    </div>
+
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;" class="dash-grid2">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Flujo de Caja — Invertido vs Gastado</div>
+      <div class="chart-bars" id="flujoBars" style="height:160px"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Ingresos vs Costos — Últimos Meses</div>
+      <div id="ingresosMini"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Últimas 10 Transacciones</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th>Valor</th></tr></thead>
+        <tbody id="recentTxTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECCIÓN: REGISTROS
+═══════════════════════════════════════════ -->
+<div id="registros" class="section">
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Nuevo Registro de Gasto / Ingreso</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="regFecha">
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="regCategoria">
+          <option value="Preparación suelo">Preparación suelo</option>
+          <option value="Siembra">Siembra</option>
+          <option value="Mano de Obra">Mano de Obra</option>
+          <option value="Insumos agrícolas">Insumos agrícolas</option>
+          <option value="Fertilización">Fertilización</option>
+          <option value="Materiales y repuestos">Materiales y repuestos</option>
+          <option value="Activos">Activos</option>
+          <option value="Otros gastos">Otros gastos</option>
+          <option value="Ingresos">Ingresos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Valor (COP)</label>
+        <input type="number" id="regValor" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>Cantidad</label>
+        <input type="number" id="regCantidad" placeholder="1" step="0.1">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="grid-column: 1/-1">
+        <label>Detalle</label>
+        <textarea id="regDetalle" rows="2" placeholder="Descripción del gasto o ingreso..."></textarea>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="addRegistro()">➕ Agregar Registro</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Todos los Registros</div>
+    <div class="filter-bar">
+      <input type="text" id="filterSearch" placeholder="🔍 Buscar..." oninput="renderTable()">
+      <select id="filterCategoria" onchange="renderTable()">
+        <option value="">Todas las categorías</option>
+        <option>Preparación suelo</option>
+        <option>Siembra</option>
+        <option>Mano de Obra</option>
+        <option>Insumos agrícolas</option>
+        <option>Fertilización</option>
+        <option>Materiales y repuestos</option>
+        <option>Activos</option>
+        <option>Otros gastos</option>
+        <option>Ingresos</option>
+      </select>
+      <select id="filterMes" onchange="renderTable()">
+        <option value="">Todos los meses</option>
+        <option value="2025-02">Feb 2025</option>
+        <option value="2025-03">Mar 2025</option>
+        <option value="2025-04">Abr 2025</option>
+        <option value="2025-05">May 2025</option>
+        <option value="2025-06">Jun 2025</option>
+        <option value="2025-07">Jul 2025</option>
+        <option value="2025-08">Ago 2025</option>
+        <option value="2025-09">Sep 2025</option>
+        <option value="2025-10">Oct 2025</option>
+        <option value="2025-11">Nov 2025</option>
+        <option value="2025-12">Dic 2025</option>
+        <option value="2026-01">Ene 2026</option>
+        <option value="2026-02">Feb 2026</option>
+      </select>
+      <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇️ Exportar CSV</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th>Cant.</th><th>Valor</th><th></th></tr></thead>
+        <tbody id="registrosTable"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-top:10px;" id="tableCount"></p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECCIÓN: PROGRAMACIÓN / GANTT
+═══════════════════════════════════════════ -->
+<div id="programacion" class="section">
+
+  <div class="alert alert-info">
+    <span>ℹ️</span>
+    <span>El Gantt muestra el ciclo completo del cultivo (Feb 2025 – Dic 2026) con fases agronómicas, costos presupuestados y % de avance editable. Haga clic en una barra para ver detalles o editar el avance.</span>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Diagrama de Gantt — Cultivo de Plátano</div>
+
+    <div class="gantt-controls">
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;">
+        <label style="white-space:nowrap">Vista:</label>
+        <select id="ganttView" onchange="renderGantt()">
+          <option value="mes">Por Mes</option>
+          <option value="fase">Por Fase</option>
+        </select>
+      </div>
+      <button class="btn btn-sm btn-outline" onclick="openAddTask()">➕ Nueva Tarea</button>
+      <div style="margin-left:auto;font-family:'DM Mono',monospace;font-size:12px;color:#94a3b8;" id="ganttSummary"></div>
+    </div>
+
+    <div class="gantt-legend">
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:var(--verde-vivo)"></div> Fase principal</div>
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:var(--verde-claro)"></div> Tarea</div>
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:var(--naranja)"></div> Actividad crítica</div>
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:#64748b"></div> Completado</div>
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:var(--amarillo-platano)"></div> Hito</div>
+      <div class="gantt-legend-item"><div class="gantt-legend-box" style="background:var(--naranja);opacity:0.4"></div> Hoy</div>
+    </div>
+
+    <div id="gantt-container"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Resumen de Costos por Fase</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fase</th><th>Presupuesto</th><th>Ejecutado</th><th>Desviación</th><th>Avance</th></tr></thead>
+        <tbody id="phaseCostTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECCIÓN: BUENAS PRÁCTICAS
+═══════════════════════════════════════════ -->
+<div id="practicas" class="section">
+
+  <div class="alert alert-success">
+    <span>📗</span>
+    <span>Buenas prácticas agronómicas basadas en el manejo tecnológico del cultivo de plátano (CorporaciónPBA) y validadas con la experiencia real de este cultivo (Feb 2025 – presente).</span>
+  </div>
+
+  <div class="practic-grid" id="practicGrid"></div>
+
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECCIÓN: REPORTES
+═══════════════════════════════════════════ -->
+<div id="reportes" class="section">
+
+  <div class="sub-tabs">
+    <button class="sub-tab active" onclick="showSubTab('rep-mes','reportes')">Por Mes</button>
+    <button class="sub-tab" onclick="showSubTab('rep-cat','reportes')">Por Categoría</button>
+    <button class="sub-tab" onclick="showSubTab('rep-rentab','reportes')">Rentabilidad</button>
+  </div>
+
+  <div id="rep-mes">
+    <div class="report-month-selector" id="reportMonthPills"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;">
+      <div class="card" id="repMesCard">
+        <div class="card-title"><span class="dot"></span> Detalle del Mes Seleccionado</div>
+        <div id="repMesContent"></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span> Distribución del Mes</div>
+        <div id="repMesDonut"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Transacciones del Mes</div>
+      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th>Valor</th></tr></thead><tbody id="repMesTx"></tbody></table></div>
+    </div>
+  </div>
+
+  <div id="rep-cat" style="display:none">
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Análisis por Categoría</div>
+      <div class="table-wrap"><table><thead><tr><th>Categoría</th><th>Total</th><th>% del Gasto</th><th>N° Registros</th><th>Promedio por Registro</th></tr></thead><tbody id="repCatTable"></tbody></table></div>
+    </div>
+  </div>
+
+  <div id="rep-rentab" style="display:none">
+    <div class="kpi-grid" id="rentabKpis"></div>
+    <div class="card">
+      <div class="card-title"><span class="dot"></span> Análisis de Rentabilidad</div>
+      <div id="rentabDetail"></div>
+    </div>
+  </div>
+
+</div>
+
+</div><!-- end app-body -->
+
+<!-- MODAL Tarea Gantt -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-title" id="modalTitle">Detalle de Tarea</div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATOS IMPORTADOS DEL EXCEL
+// ══════════════════════════════════════════
+const DB = [
+  {fecha:"2025-02-02",detalle:"Mecanizada terreno",valor:540000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-19",detalle:"Insecticida x lt Lego Chemical",valor:138000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Agrodyne Sl x Lt",valor:70000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Razine x Lt",valor:45000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Totem x 50 kilos",valor:469000,cat:"Fertilización",cant:7},
+  {fecha:"2025-02-21",detalle:"Adelanto colino siembra",valor:500000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Preparación tableado",valor:270000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-23",detalle:"Analisis de suelo",valor:160000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-23",detalle:"Abono adelanto compra colino",valor:600000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Bolsas para empacar abono",valor:7100,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-23",detalle:"Cargada colino",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-02-23",detalle:"Pago total colino",valor:510000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Hidratación",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-23",detalle:"Colino arrancada",valor:740000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-02-23",detalle:"Flete abonos",valor:40000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-26",detalle:"Transporte colino",valor:400000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-28",detalle:"Pago total siembra colino",valor:1678600,cat:"Siembra",cant:null},
+  {fecha:"2025-02-28",detalle:"Impuestos 4x1000",valor:13310,cat:"Otros gastos",cant:null},
+  {fecha:"2025-03-05",detalle:"Glufosinato de amonio 200SL",valor:65433,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-03-05",detalle:"Atenas 240 EC x Lt",valor:52868,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-03-05",detalle:"Fasten x Lt",valor:26901,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-03-19",detalle:"Clethodim casa fertil 240 EC",valor:120000,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-03-25",detalle:"Clethodim casa fertil 240 EC x Lt",valor:80000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-03-30",detalle:"Flete 200 colinos",valor:35000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-03-30",detalle:"Jornales resiembra y fumigada (8)",valor:440000,cat:"Siembra",cant:null},
+  {fecha:"2025-04-02",detalle:"Pegal x 1 Lt",valor:17647,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-04-02",detalle:"Razine x Lt",valor:88000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-04-02",detalle:"IVA",valor:3352.94,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-02",detalle:"Biorganik x 5 Kilos",valor:24000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-02",detalle:"Estocada 90 SP x 60gr",valor:32000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-02",detalle:"Cabor SC cab X Lt",valor:34000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-02",detalle:"Sulfex magnesio X Kg",valor:29400,cat:"Fertilización",cant:6},
+  {fecha:"2025-04-06",detalle:"Manguera succión",valor:110000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-06",detalle:"Manguera Poli 1 1/2 X100mts",valor:195000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-06",detalle:"Teflón industrial",valor:5000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Fumigadora clásica Royal",valor:357500,cat:"Activos",cant:null},
+  {fecha:"2025-04-06",detalle:"Flete caneca y mangueras",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Gasolina y aceite 2 tiempos",valor:24500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Gallinaza",valor:1380000,cat:"Fertilización",cant:null},
+  {fecha:"2025-04-04",detalle:"Motobomba pagó Fabian transferencia",valor:1250000,cat:"Activos",cant:null},
+  {fecha:"2025-04-08",detalle:"Pago colino y mano de obra resiembra",valor:100000,cat:"Siembra",cant:null},
+  {fecha:"2025-04-08",detalle:"Abrazaderas motobomba",valor:7500,cat:"Otros gastos",cant:2},
+  {fecha:"2025-04-08",detalle:"Plástico negro calibre 6",valor:47500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-10",detalle:"Cosmo OIL X Lt",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-04-14",detalle:"Glufosinato de amonio X 20 Lt pago directo Fabian",valor:350000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-15",detalle:"Acople motobomba 1 1/2 KTC",valor:40000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-08",detalle:"JORNALES abonada foliares",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-04-10",detalle:"JORNALES fumigada",valor:180000,cat:"Mano de Obra",cant:3},
+  {fecha:"2025-04-15",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-04-21",detalle:"Dap X 50 KL",valor:189800,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Cloruro de potasio X 50KL SQM",valor:208000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Hydran X 50 KL 19 4 19 3 24",valor:186300,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Halcon radicular X 46 KLS",valor:224000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Borozinco X 20 KL",valor:157000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Triple 18 X 50 KLS",valor:274400,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Abono magfosil X 5",valor:77000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-22",detalle:"Flete insumos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-23",detalle:"JORNAL completo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-20",detalle:"JORNALES fumigar hierba",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-22",detalle:"JORNALES abonada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-23",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-24",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-28",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-29",detalle:"JORNALES aplicada gallinaza",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-01",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-01",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-02",detalle:"JORNALES termino aplicación gallinaza y fumigada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-06",detalle:"Medio JORNAL fumigar",valor:30000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"gasolina",valor:17000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-05-08",detalle:"JORNAL fumigada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-12",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-13",detalle:"JORNAL fumigada y mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-14",detalle:"JORNAL fumigada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-14",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-14",detalle:"Humus passion fruit X 20LT",valor:220000,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Sulfato de magnesion 25 KG",valor:52000,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Klip boro colinagro X KG",valor:27001,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Kelasys manganeso X Kg",valor:78200,cat:"Fertilización",cant:2},
+  {fecha:"2025-05-14",detalle:"Fertiraiz X Kg",valor:80000,cat:"Fertilización",cant:2},
+  {fecha:"2025-05-14",detalle:"Cenagro menores X Kg",valor:126000,cat:"Fertilización",cant:6},
+  {fecha:"2025-05-16",detalle:"JORNALES termino fumigada y mantenimiento",valor:120000,cat:"Fertilización",cant:null},
+  {fecha:"2025-05-20",detalle:"Transporte insumos flete",valor:26000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-05-20",detalle:"JORNALES aplicada drench",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-27",detalle:"JORNAL mantenimiento terreno zanjas",valor:60000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-05-28",detalle:"Nutribans X bulto (pago directo Fabian)",valor:570000,cat:"Fertilización",cant:5},
+  {fecha:"2025-05-28",detalle:"25-4-24 Granulado X 50Kg (pago directo Fabian)",valor:625000,cat:"Fertilización",cant:5},
+  {fecha:"2025-05-28",detalle:"Blanqueador hipoclorito Luky 2Lt",valor:3500,cat:"Otros gastos",cant:1},
+  {fecha:"2025-05-29",detalle:"JORNALES abonada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-29",detalle:"Flete abonos transporte",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-03",detalle:"JORNALES descolinar y desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-07",detalle:"JORNALES descolinar y desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-08",detalle:"JORNALES fumigación y descolinar",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-09",detalle:"JORNALES descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-10",detalle:"Pastrol (cletodim) X LT",valor:39000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-06-10",detalle:"JORNALES descolinar y zanjas",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-11",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-13",detalle:"Portasys X galón",valor:100000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Spax 80 X Lt",valor:73000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Benoagro benomyl 500WO XKg",valor:56000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Crecifoss X Kg fertilizando",valor:24000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Trombo X Kg GR",valor:76000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Cenagro germinaz X Kg",valor:122000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Thiatryn SC X LT",valor:56000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-16",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-16",detalle:"JORNAL fumigación sigatoka",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-17",detalle:"JORNAL fumigación suelo",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-17",detalle:"Gasolina",valor:5000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-19",detalle:"JORNALES fumigacion y mantenimiento terrero",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-01",detalle:"JORNALES fumigacion sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-01",detalle:"Machete peinill A 16 Bellota",valor:44000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Lima triangular 6 Bellota X12",valor:6500,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Cabo de pala",valor:10000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-01",detalle:"Aceite 2 tiempos",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-01",detalle:"Dorab X Lt",valor:110000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Vigilant X kilo",valor:40000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Agrotop X bulto 50Kg",valor:256000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Cenafos 6 X bulto 50Kg",valor:250000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Nutribans X 50 Kg",valor:456000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Multa X 100 grs",valor:18000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Cal dolomita X 50 Kg",valor:570000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-01",detalle:"Top Sul x GL",valor:70000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Nitrabor Pro ZN X 50 Kl",valor:170500,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Sulcamag X 50Kl",valor:87900,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-03",detalle:"JORNALES mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-03",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-04",detalle:"Robendazim 500 SC X LT",valor:28000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-04",detalle:"Renex 720 SC X LT",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-04",detalle:"Agrotin X Lt (coadyudante) Bayer",valor:26775,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Difenex X LT (Difeconazole)",valor:60000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Benevolo X Lt (Azoxystrobin+frutriafol)",valor:95000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Cenagro Briomenores X Lt",valor:47000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-06",detalle:"JORNALES zanjas",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-06",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-07",detalle:"JORNALES zanjas",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-07",detalle:"JORNALES desojada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-08",detalle:"JORNALES fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-10",detalle:"Flete cal",valor:60000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-11",detalle:"Gasolina",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-11",detalle:"JORNAL fumigada Sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-12",detalle:"JORNALES aplicación cal",valor:450000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-15",detalle:"Agrotin X Lt (coadyudante) Bayer",valor:26775,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-15",detalle:"Pastrol (cletodim) X galon",valor:145000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-16",detalle:"Boquilla abanico estandar",valor:8000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-17",detalle:"JORNAL tapada cal",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-17",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-22",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"JORNAL fumigar sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"JORNAL mantenimiento terrenos",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-28",detalle:"Flete abonos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-28",detalle:"JORNAL abonada y tapada fertilizantes",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-28",detalle:"JORNAL abonada fertilizantes",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-30",detalle:"JORNAL descalcetar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-30",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-31",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-04",detalle:"JORNAL descalcetar Juan",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-06",detalle:"JORNAL descalcetar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-08",detalle:"JORNAL termino despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-10",detalle:"Mistura",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-10",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-10",detalle:"Kruga X Lt (fenbuconazole)",valor:149000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-10",detalle:"Landris X dosis(cipermetrina+Acetamiprid)",valor:17000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-12",detalle:"JORNAL fumigada sigatoka",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-15",detalle:"Ferti Aqua X LT",valor:55000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Razine X 4 Litros",valor:162000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Carbor SC CAB X 4 LT",valor:127000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Agrodyne SL X 1Lt",valor:150000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Biorganik x 20 Kilos",valor:85000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Numek 1.8 EC X Lt",valor:62000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"KCL standar precisagro X 50 Kilos",valor:222000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-17",detalle:"Sulfato de magnesio SOL x bultos 25 kg",valor:52000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-18",detalle:"Flete insumos (2)",valor:45000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-18",detalle:"JORNAL aplicada drench",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-18",detalle:"JORNAL aplicada drench Jhony",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-20",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-22",detalle:"Natural Oil X Litro",valor:26500,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-22",detalle:"Maicero Nutrición X 50KL",valor:369600,cat:"Fertilización",cant:3},
+  {fecha:"2025-08-22",detalle:"Belkute 40 WP X 120 gr",valor:37000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-08-22",detalle:"Bifixgro X litro",valor:91000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-08-24",detalle:"Gasolina",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-24",detalle:"Aceite 2 tiempos",valor:17500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-24",detalle:"JORNAL fumigada sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-27",detalle:"JORNAL abonada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-27",detalle:"Flete insumos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-01",detalle:"JORNAL desguascar - despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-03",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-03",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-04",detalle:"Clorotalonil 720SC X litro Casa fertil",valor:26500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-04",detalle:"Microkel boro",valor:36000,cat:"Fertilización",cant:1},
+  {fecha:"2025-09-04",detalle:"Mancozeb Nufarm 80% WP X LT",valor:19500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-08",detalle:"JORNAL despuntar - desguascar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-09",detalle:"JORNAL fumigar sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-09",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-11",detalle:"Platano 14-4-23-4 X 50KL",valor:428000,cat:"Insumos agrícolas",cant:4},
+  {fecha:"2025-09-11",detalle:"KCL nutrición X 50KL",valor:660000,cat:"Insumos agrícolas",cant:6},
+  {fecha:"2025-09-11",detalle:"Magfosil X 50KL",valor:234000,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-09-12",detalle:"Glufosinato de amonio 200SL X 4 litros",valor:67850,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-15",detalle:"Flete abonos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-16",detalle:"Fumigación piso y aplicacion de abono",valor:330000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-18",detalle:"Lima triangular",valor:8000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-09-19",detalle:"JORNAL despuntar - mantenimiento",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-21",detalle:"JORNAL despuntar - desojar - desguascar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-22",detalle:"Biorganik x 20 Kilos",valor:85000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-22",detalle:"Start magnesio X LT",valor:82000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-24",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-24",detalle:"Propiconzole casa fertil 250ec",valor:42000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-24",detalle:"JORNAL fumigada sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-28",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-29",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-29",detalle:"Potensys ph x lt",valor:41000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Cyprox 100 SL X Lt (Ciproconazol)",valor:58000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Tenaz 250 Sc X Lt (Azoxystrobin)",valor:71000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Fertilita Grosso X lt (calcio, boro, amonio)",valor:33000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Formador 2000",valor:104000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-09-30",detalle:"JORNAL descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-02",detalle:"gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-02",detalle:"Aceite 2 tiempos",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-02",detalle:"JORNAL fumigada Sigatoka",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-09",detalle:"JORNAL desojada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-10",detalle:"JORNAL",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-14",detalle:"Vigilant 80WP X kilo / precisagro",valor:20000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Alargue ecoline x dosis 100cc",valor:28000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Fertilita Frutox X LT",valor:40000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Bolsa racimo plátano X 500 unidades",valor:154000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-16",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-16",detalle:"Tenaz 250 SC XLT",valor:71000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-16",detalle:"Natural Oil X litro",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-16",detalle:"Romectin XLT",valor:30000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-17",detalle:"JORNAL deshojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-17",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-17",detalle:"Disan lleando X 50Kg",valor:740000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Nitroextend X 50 Kg",valor:426000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Nitro calcio X 25 Kg",valor:316000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Dap granulado X 50KG",valor:412000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-19",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-20",detalle:"Magnitro K X 50 Kl 11-0-30-MG",valor:263000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-20",detalle:"JORNALES Abonada",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-10-20",detalle:"Flete abono",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-21",detalle:"JORNALES abonada tapada",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-10-22",detalle:"JORNAL termino tapada y descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-24",detalle:"JORNAL descolinar termino",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-28",detalle:"Lima",valor:6000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-10-29",detalle:"JORNAL despuntar 28 y 29 octubre",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-29",detalle:"Potensys X lt",valor:41000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Benevolo X LItro",valor:95000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Benomyl X KL",valor:54000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Formador 2000 X LT",valor:104000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-10-29",detalle:"Mancozeb X LT",valor:22000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-31",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-31",detalle:"JORNAL fumigada sigatoka caneca y media",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-07",detalle:"Bolsa racimo plátano X 500 unidades",valor:154000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-07",detalle:"Benigno (Azozystrobin + Difeconazole)",valor:110000,cat:"Fertilización",cant:null},
+  {fecha:"2025-11-10",detalle:"JORNAL despuntada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-11",detalle:"BOLSA racimo plátano X 500 unidades",valor:152000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-11",detalle:"Pago de embolsar racimo plátano",valor:415000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-13",detalle:"Manguera de riego",valor:1800000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-14",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-14",detalle:"Gasolina",valor:13000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-19",detalle:"BOLSA racimo plátano X 500 unidades",valor:152000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-20",detalle:"PAGO de embolsar racimo plátano",valor:265000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-25",detalle:"JORNAL",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-26",detalle:"Nativo X litros / AF Bayer",valor:153000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-11-26",detalle:"Renex 720 SC X LT(clorotalonil)",valor:60000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-11-26",detalle:"Fertilita Grosso X lt",valor:66000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-11-26",detalle:"Registros de 2 PVC",valor:36000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Inserto de 2 PVC",valor:16500,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Uniones galvanizadas",valor:48000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Abrazadera",valor:20000,cat:"Materiales y repuestos",cant:4},
+  {fecha:"2025-11-26",detalle:"Cremallera Pulg 2",valor:45000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-26",detalle:"Reduccion Galvanizada",valor:4500,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-26",detalle:"Soldadura Celta PVC",valor:12500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-27",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-27",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-27",detalle:"Filtro anillo 2",valor:150000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-27",detalle:"Buje roscado 2",valor:20000,cat:"Materiales y repuestos",cant:2},
+  {fecha:"2025-11-27",detalle:"Acople macho 2",valor:26000,cat:"Materiales y repuestos",cant:2},
+  {fecha:"2025-11-27",detalle:"Teflon industrial",valor:3000,cat:"Otros gastos",cant:1},
+  {fecha:"2025-12-01",detalle:"Tubo presión 2 RD21",valor:13000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-12-01",detalle:"Silleta 16MM para R1500",valor:75000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-01",detalle:"Registro 16MM Manguez",valor:184000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-01",detalle:"Manguera 2",valor:255000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-12-02",detalle:"JORNALES RIEGO",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-02",detalle:"Flete mangueras",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-04",detalle:"JORNAL huecos manguera",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-05",detalle:"Gasolina",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-05",detalle:"JORNALES manguera de riego pequeña",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-09",detalle:"Alargue ecoline x dosis 100cc",valor:28000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-09",detalle:"Bolsa racimo",valor:154000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-10",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-11",detalle:"Glonium 280 SL X 4 Ltr",valor:69000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-12",detalle:"Manguera de 2 pulgadas",valor:255000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-12",detalle:"JORNALES término riego",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-12",detalle:"Accesorios manguera de riego",valor:7000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-14",detalle:"JORNALES instalación y riego motobomba",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-14",detalle:"Motobomba y acoples",valor:3199000,cat:"Activos",cant:null},
+  {fecha:"2025-12-14",detalle:"Flete",valor:20000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-14",detalle:"ACPM",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-15",detalle:"JORNAL Cuidado noche",valor:60000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-12-15",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-16",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-16",detalle:"Fibra cono amarre matas",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-17",detalle:"Fibra cosechera",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-19",detalle:"JORNALES Adelmo noche",valor:300000,cat:"Mano de Obra",cant:5},
+  {fecha:"2025-12-20",detalle:"JORNALES JUAN NOCHE",valor:600000,cat:"Mano de Obra",cant:10},
+  {fecha:"2025-12-20",detalle:"JORNAL Adelmo noche",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-21",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-22",detalle:"Trailer moto bomba",valor:350000,cat:"Activos",cant:null},
+  {fecha:"2025-12-24",detalle:"Engrosar K550 X Lt / Fertilizando",valor:84000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-12-24",detalle:"Agrofast (Bioestimulante) X lt colinagro",valor:65000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Pirymethanyl dvax litro",valor:55000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Potensys H X Lt",valor:33000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Benomyl 500 WP X KG",valor:56500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Biorganik X KG",valor:26000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-28",detalle:"JORNAL hondar hoyo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-28",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-28",detalle:"JORNAL riego",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-29",detalle:"Sulfato de potasio X 25Kg",valor:125000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Nitrato de calcio + B X 25 Kg",valor:79000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Sulfato de Amonio X 50Kg",valor:90000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Uniones 16MM cinta manguera de riego",valor:10000,cat:"Fertilización",cant:10},
+  {fecha:"2025-12-30",detalle:"JORNAL aplicacion Drench",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-31",detalle:"Aceite 2 tiempos",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-31",detalle:"Gasolina",valor:16000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-02",detalle:"JORNAL fumigada Sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-07",detalle:"JORNALES corte plátano",valor:180000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-07",detalle:"Venta 32 buena + 10 segunda + 7 pica",valor:1931000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-09",detalle:"Venta por arrobas 57",valor:1886000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-09",detalle:"Flete",valor:50000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-09",detalle:"JORNALES corte de platano",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-13",detalle:"Gasolina",valor:18000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-13",detalle:"Fibra amarre plátano",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-13",detalle:"JORNALES amarre",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-14",detalle:"Corte de plátano (dos señores)",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-15",detalle:"JORNALES",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-15",detalle:"Fibra amarre plátano",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-15",detalle:"JORNALES",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-16",detalle:"JORNAL amarre matas platano",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-17",detalle:"Venta 67 primera, 24 segunda, 21 pica",valor:6639000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-19",detalle:"Venta 34.4 arrobas",valor:1548000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-19",detalle:"JORNAL corte plátano",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-20",detalle:"JORNAL amarre",valor:65000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-20",detalle:"Fibra amarre plátano",valor:34000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2026-01-21",detalle:"JORNALES amarre",valor:125000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-21",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-22",detalle:"Venta plátano 36.95 arrobas",valor:1700000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-22",detalle:"JORNALES amarre, corte y cargue plátano",valor:186000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-22",detalle:"Venta plátano 61 primera, 19 segunda, 11 pica",valor:6100000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-22",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-23",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-24",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-25",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-26",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-27",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-27",detalle:"Venta plátano 84 primera, 34 segunda, 27 pica",valor:8590000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-27",detalle:"JORNALES plataneada, cargue racimos",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-28",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-29",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNALES plataneada, cargue racimos",valor:210000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"Compra Carretilla",valor:200000,cat:"Activos",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNAL amarres",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"Venta 87 primera, 43 segunda, 19 pica",valor:8700000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-31",detalle:"Aceite shell",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-31",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-01",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-02",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-03",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-03",detalle:"JORNAL terreno",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"ACPM tractor, mechones",valor:50000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-04",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"JORNALES plataneada, cargue racimos (3 jornales)",valor:260000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"Venta 72 primera, 73 segunda, 79 pica",valor:11690000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-04",detalle:"TRACTOR cargue",valor:200000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-05",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-05",detalle:"ACPM mechones",valor:13000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-06",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-06",detalle:"JORNAL amarre",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-07",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-07",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"JORNALES corte de platano (2 trabajadores)",valor:160000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"TRACTOR cargue",valor:155000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-09",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-10",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-10",detalle:"ACPM",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-11",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-11",detalle:"ACPM préstamo de Daniel",valor:34000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-08",detalle:"Venta 67 primera 39 segunda 48 pica",valor:9096000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-12",detalle:"ACPM",valor:27000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"JORNALES plataneada corte",valor:210000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-12",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"TRACTOR cargue",valor:195000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"VENTA platano 35 arrobas",valor:1470000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-13",detalle:"Gaseosa",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"Bolsas empacar plátano",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"VENTA platano 83 buenas, 58 segunda, 53 pica",valor:11272000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-14",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-15",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-16",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-17",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-18",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-19",detalle:"VENTA plátano 35 buenas, 31 buenas, 46 pica",valor:4615000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-19",detalle:"JORNALES plataneada",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-19",detalle:"TRACTOR cargue",valor:112000,cat:"Mano de Obra",cant:null},
+];
+
+// ══════════════════════════════════════════
+//  GANTT DATA
+// ══════════════════════════════════════════
+const MONTHS = [
+  {key:"2025-02",label:"Feb 25"},{key:"2025-03",label:"Mar 25"},{key:"2025-04",label:"Abr 25"},
+  {key:"2025-05",label:"May 25"},{key:"2025-06",label:"Jun 25"},{key:"2025-07",label:"Jul 25"},
+  {key:"2025-08",label:"Ago 25"},{key:"2025-09",label:"Sep 25"},{key:"2025-10",label:"Oct 25"},
+  {key:"2025-11",label:"Nov 25"},{key:"2025-12",label:"Dic 25"},{key:"2026-01",label:"Ene 26"},
+  {key:"2026-02",label:"Feb 26"},{key:"2026-03",label:"Mar 26"},{key:"2026-04",label:"Abr 26"},
+  {key:"2026-05",label:"May 26"},{key:"2026-06",label:"Jun 26"},{key:"2026-07",label:"Jul 26"},
+  {key:"2026-08",label:"Ago 26"},{key:"2026-09",label:"Sep 26"},{key:"2026-10",label:"Oct 26"},
+  {key:"2026-11",label:"Nov 26"},{key:"2026-12",label:"Dic 26"},
+];
+
+let GANTT_TASKS = [
+  {id:1,label:"🌱 FASE 1: Establecimiento",type:"phase",start:"2025-02",end:"2025-04",progress:100,cost:14000000,realCost:0,critical:false,notes:"Preparación, siembra y resiembra"},
+  {id:2,label:"Análisis de suelos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:160000,realCost:160000,critical:false,notes:"Análisis químico y físico para plan de fertilización"},
+  {id:3,label:"Mecanización y tableado",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:810000,realCost:810000,critical:false,notes:"Mecanizada + tableado del terreno"},
+  {id:4,label:"Siembra colinos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:3288600,realCost:3288600,critical:true,notes:"Compra y siembra de colinos seleccionados"},
+  {id:5,label:"Resiembra y ajuste",type:"task",parent:1,start:"2025-03",end:"2025-04",progress:100,cost:540000,realCost:540000,critical:false,notes:"Resiembra con 200 colinos adicionales"},
+  {id:6,label:"🌿 FASE 2: Desarrollo vegetativo",type:"phase",start:"2025-04",end:"2025-08",progress:100,cost:22000000,realCost:0,critical:false,notes:"Nutrición, control fitosanitario, mantenimiento"},
+  {id:7,label:"Plan de fertilización (1ª abonada)",type:"task",parent:6,start:"2025-04",end:"2025-04",progress:100,cost:3165900,realCost:3165900,critical:true,notes:"DAP, KCL, Triple18, Gallinaza, foliares"},
+  {id:8,label:"Control sigatoka — ciclos fumigación",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:2500000,realCost:0,critical:true,notes:"Fumigación quincenal con fungicidas sistémicos"},
+  {id:9,label:"Mantenimiento terreno / deshierbe",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:1200000,realCost:0,critical:false,notes:"Jornales periódicos de desyerbe y mantenimiento"},
+  {id:10,label:"2ª abonada — foliares y edáficos",type:"task",parent:6,start:"2025-05",end:"2025-05",progress:100,cost:1898201,realCost:1898201,critical:true,notes:"Nutribans, foliares, drench de raíz"},
+  {id:11,label:"3ª abonada — cal + correctivos",type:"task",parent:6,start:"2025-07",end:"2025-07",progress:100,cost:1687175,realCost:1687175,critical:true,notes:"Cal dolomita, fertis, foliares sigatoka"},
+  {id:12,label:"Instalación sistema de riego",type:"task",parent:6,start:"2025-11",end:"2025-12",progress:100,cost:6000000,realCost:5774000,critical:true,notes:"Motobomba, mangueras, instalación completa"},
+  {id:13,label:"🍌 FASE 3: Llenado y cosecha",type:"phase",start:"2025-10",end:"2026-04",progress:75,cost:18000000,realCost:0,critical:false,notes:"Embolse, amarre, primera cosecha"},
+  {id:14,label:"Embolse de racimos",type:"task",parent:13,start:"2025-10",end:"2026-02",progress:80,cost:1200000,realCost:726000,critical:true,notes:"Bolsas protectoras, registro semanal de racimos embolsados"},
+  {id:15,label:"Amarre y soporte de matas",type:"task",parent:13,start:"2025-12",end:"2026-06",progress:60,cost:400000,realCost:280000,critical:false,notes:"Fibra de amarre para plantas con racimo"},
+  {id:16,label:"Primera cosecha 🎉",type:"task",parent:13,start:"2026-01",end:"2026-01",progress:100,cost:500000,realCost:180000,critical:true,notes:"¡Primera venta: $1.931.000! (ene 7, 2026)"},
+  {id:17,label:"Cosechas continuas",type:"task",parent:13,start:"2026-01",end:"2026-09",progress:40,cost:2000000,realCost:0,critical:false,notes:"Corte semanal según maduración racimos"},
+  {id:18,label:"Vigilancia nocturna cultivo",type:"task",parent:13,start:"2025-12",end:"2026-04",progress:70,cost:1500000,realCost:1130000,critical:false,notes:"Jornales nocturnos para protección del cultivo"},
+  {id:19,label:"♻️ FASE 4: Mantenimiento — 2do ciclo",type:"phase",start:"2026-03",end:"2026-12",progress:0,cost:15000000,realCost:0,critical:false,notes:"Preparación segundo ciclo productivo"},
+  {id:20,label:"Descolinar — selección de hijos",type:"task",parent:19,start:"2026-03",end:"2026-05",progress:0,cost:800000,realCost:0,critical:true,notes:"Dejar 1 hijo seleccionado por planta"},
+  {id:21,label:"4ª abonada — 2do ciclo",type:"task",parent:19,start:"2026-04",end:"2026-04",progress:0,cost:3000000,realCost:0,critical:true,notes:"Plan nutricional completo para hijo seleccionado"},
+  {id:22,label:"Control de plagas — Moko, picudo",type:"task",parent:19,start:"2026-03",end:"2026-12",progress:0,cost:1200000,realCost:0,critical:true,notes:"Inspección semanal y aplicación preventiva"},
+  {id:23,label:"Renovación del sistema de riego",type:"task",parent:19,start:"2026-06",end:"2026-07",progress:0,cost:1500000,realCost:0,critical:false,notes:"Mantenimiento y ampliación red de riego"},
+];
+
+// ══════════════════════════════════════════
+//  BUENAS PRÁCTICAS
+// ══════════════════════════════════════════
+const BUENAS_PRACTICAS = [
+  {
+    titulo:"🌱 Selección y Preparación del Terreno",
+    headerClass:"ph-green",
+    items:[
+      {icon:"✅",text:"Realizar análisis de suelo ANTES de sembrar para determinar pH (ideal 5.5–7.0), nutrientes y textura."},
+      {icon:"✅",text:"El pH óptimo para plátano es 5.5 a 6.5. Aplicar cal dolomita si el suelo es ácido (pH < 5.5)."},
+      {icon:"✅",text:"Asegurarse de que el terreno tenga buen drenaje natural o construir zanjas de drenaje. Plátano no tolera encharcamientos."},
+      {icon:"✅",text:"Preparar el suelo con mecanización (arado, rastrillado) antes de la siembra para romper capas compactadas."},
+      {icon:"✅",text:"Definir el trazado y densidad de siembra: 3×3 m (1.111 plantas/ha) o 2×2.5 m para alta densidad."},
+    ]
+  },
+  {
+    titulo:"🌿 Siembra y Material de Propagación",
+    headerClass:"ph-brown",
+    items:[
+      {icon:"✅",text:"Usar colinos sanos, de buena procedencia, libres de picudo (Cosmopolites sordidus) y Moko (Ralstonia solanacearum)."},
+      {icon:"✅",text:"Limpiar y desinfectar los colinos antes de sembrar: sumergir en solución de insecticida + fungicida."},
+      {icon:"✅",text:"La profundidad de siembra debe ser de 20-30 cm, colocando el cormo de forma que la yema quede cubierta."},
+      {icon:"✅",text:"Realizar resiembra en las primeras 4 semanas para corregir mortalidad y garantizar densidad objetivo."},
+      {icon:"✅",text:"Registrar el número de colinos sembrados, procedencia y fecha para llevar trazabilidad completa."},
+    ]
+  },
+  {
+    titulo:"💧 Fertilización y Nutrición",
+    headerClass:"ph-blue",
+    items:[
+      {icon:"✅",text:"Primera abonada: a los 30-45 días después de siembra. Usar fórmulas completas (N-P-K) + micronutrientes."},
+      {icon:"✅",text:"Programa mínimo de 4 fertilizaciones anuales. El plátano es muy exigente en K (Potasio) y N (Nitrógeno)."},
+      {icon:"✅",text:"Fertilización foliar cada 15-20 días para complementar la edáfica. Incluir boro, zinc y magnesio."},
+      {icon:"✅",text:"La Gallinaza es un excelente abono orgánico; aplicar 5-10 kg/planta para mejorar estructura del suelo."},
+      {icon:"✅",text:"Drench radicular con bioestimulantes (humus, biorganik) favorece el desarrollo radicular y absorción."},
+      {icon:"✅",text:"Registrar cada aplicación: producto, dosis, área, operario y fecha. ¡La trazabilidad es clave!"},
+    ]
+  },
+  {
+    titulo:"🦠 Manejo Fitosanitario",
+    headerClass:"ph-purple",
+    items:[
+      {icon:"⚠️",text:"Sigatoka negra (Mycosphaerella fijiensis): principal amenaza. Fumigación cada 14-21 días con fungicidas sistémicos (propiconazole, azoxystrobin, trifloxystrobin)."},
+      {icon:"⚠️",text:"Moko bacteriano (Ralstonia solanacearum): erradicar plantas enfermas de inmediato. No llevar herramientas sin desinfectar entre lotes."},
+      {icon:"⚠️",text:"Picudo negro (Cosmopolites sordidus): instalar trampas con atrayente. Aplicar insecticida drench si hay infestación."},
+      {icon:"✅",text:"Rotación de fungicidas para evitar resistencia. Usar al menos 3 moléculas activas distintas en el ciclo."},
+      {icon:"✅",text:"Llevar registro semanal de incidencia de enfermedades, severidad (% hoja afectada) y acción tomada."},
+      {icon:"✅",text:"Deshoje sanitario: eliminar hojas con más del 50% de área foliar afectada por sigatoka."},
+    ]
+  },
+  {
+    titulo:"🌾 Labores Culturales",
+    headerClass:"ph-orange",
+    items:[
+      {icon:"✅",text:"Deshije/descolinar: dejar 1 hijo por planta (hijo de espada preferiblemente). Eliminar los demás cada 30-45 días."},
+      {icon:"✅",text:"Despunte: eliminar la flor masculina (mancuerna) a los 7-10 días de aparecida la inflorescencia."},
+      {icon:"✅",text:"Embolse del racimo: fundamental para proteger contra insectos, rozamiento y mejorar calidad. Hacer al momento de aparición de inflorescencia."},
+      {icon:"✅",text:"Desgüasque: eliminar hojas secas y guías para evitar acumulación de humedad y focos de enfermedades."},
+      {icon:"✅",text:"Amarre y soporte: en plantas con racimo grande usar tutores o amarres para evitar volcamiento."},
+      {icon:"✅",text:"Control de malezas manual o herbicidas selectivos. Evitar compactación del suelo con maquinaria pesada."},
+    ]
+  },
+  {
+    titulo:"🍌 Cosecha y Postcosecha",
+    headerClass:"ph-yellow",
+    items:[
+      {icon:"✅",text:"Cosechar cuando el racimo tenga el grado de llenado adecuado según destino: mercado local (más maduro) o exportación (más verde)."},
+      {icon:"✅",text:"El tiempo de cosecha varía entre 9-14 meses según variedad, altitud y manejo. Llevar registro de la fecha de embolse para planificar el corte."},
+      {icon:"✅",text:"Usar machete bien afilado y desinfectado para cortar el vástago. Evitar magulladuras en los dedos."},
+      {icon:"✅",text:"Registrar cada cosecha: fecha, número de racimos, peso, calidad (primera, segunda, pica) y precio de venta."},
+      {icon:"✅",text:"Calcular rentabilidad por cosecha: ingresos - costos operativos del período para tomar decisiones de inversión."},
+      {icon:"✅",text:"Para el 2do ciclo: seleccionar el mejor hijo de espada durante la cosecha del primer ciclo."},
+    ]
+  },
+];
+
+// ══════════════════════════════════════════
+//  ESTADO Y HELPERS<script>
+// ══════════════════════════════════════════
+//  DATOS IMPORTADOS DEL EXCEL
+// ══════════════════════════════════════════
+const DB = [
+  {fecha:"2025-02-02",detalle:"Mecanizada terreno",valor:540000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-19",detalle:"Insecticida x lt Lego Chemical",valor:138000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Agrodyne Sl x Lt",valor:70000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Razine x Lt",valor:45000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-02-19",detalle:"Totem x 50 kilos",valor:469000,cat:"Fertilización",cant:7},
+  {fecha:"2025-02-21",detalle:"Adelanto colino siembra",valor:500000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Preparación tableado",valor:270000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-23",detalle:"Analisis de suelo",valor:160000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-02-23",detalle:"Abono adelanto compra colino",valor:600000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Bolsas para empacar abono",valor:7100,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-23",detalle:"Cargada colino",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-02-23",detalle:"Pago total colino",valor:510000,cat:"Siembra",cant:null},
+  {fecha:"2025-02-23",detalle:"Hidratación",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-23",detalle:"Colino arrancada",valor:740000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-02-23",detalle:"Flete abonos",valor:40000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-26",detalle:"Transporte colino",valor:400000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-02-28",detalle:"Pago total siembra colino",valor:1678600,cat:"Siembra",cant:null},
+  {fecha:"2025-02-28",detalle:"Impuestos 4x1000",valor:13310,cat:"Otros gastos",cant:null},
+  {fecha:"2025-03-05",detalle:"Glufosinato de amonio 200SL",valor:65433,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-03-05",detalle:"Atenas 240 EC x Lt",valor:52868,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-03-05",detalle:"Fasten x Lt",valor:26901,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-03-19",detalle:"Clethodim casa fertil 240 EC",valor:120000,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-03-25",detalle:"Clethodim casa fertil 240 EC x Lt",valor:80000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-03-30",detalle:"Flete 200 colinos",valor:35000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-03-30",detalle:"Jornales resiembra y fumigada (8)",valor:440000,cat:"Siembra",cant:null},
+  {fecha:"2025-04-02",detalle:"Pegal x 1 Lt",valor:17647,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-04-02",detalle:"Razine x Lt",valor:88000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-04-02",detalle:"IVA",valor:3352.94,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-02",detalle:"Biorganik x 5 Kilos",valor:24000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-02",detalle:"Estocada 90 SP x 60gr",valor:32000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-02",detalle:"Cabor SC cab X Lt",valor:34000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-02",detalle:"Sulfex magnesio X Kg",valor:29400,cat:"Fertilización",cant:6},
+  {fecha:"2025-04-06",detalle:"Manguera succión",valor:110000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-06",detalle:"Manguera Poli 1 1/2 X100mts",valor:195000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-06",detalle:"Teflón industrial",valor:5000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Fumigadora clásica Royal",valor:357500,cat:"Activos",cant:null},
+  {fecha:"2025-04-06",detalle:"Flete caneca y mangueras",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Gasolina y aceite 2 tiempos",valor:24500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-06",detalle:"Gallinaza",valor:1380000,cat:"Fertilización",cant:null},
+  {fecha:"2025-04-04",detalle:"Motobomba pagó Fabian transferencia",valor:1250000,cat:"Activos",cant:null},
+  {fecha:"2025-04-08",detalle:"Pago colino y mano de obra resiembra",valor:100000,cat:"Siembra",cant:null},
+  {fecha:"2025-04-08",detalle:"Abrazaderas motobomba",valor:7500,cat:"Otros gastos",cant:2},
+  {fecha:"2025-04-08",detalle:"Plástico negro calibre 6",valor:47500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-10",detalle:"Cosmo OIL X Lt",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-04-14",detalle:"Glufosinato de amonio X 20 Lt pago directo Fabian",valor:350000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-15",detalle:"Acople motobomba 1 1/2 KTC",valor:40000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-04-08",detalle:"JORNALES abonada foliares",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-04-10",detalle:"JORNALES fumigada",valor:180000,cat:"Mano de Obra",cant:3},
+  {fecha:"2025-04-15",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-04-21",detalle:"Dap X 50 KL",valor:189800,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Cloruro de potasio X 50KL SQM",valor:208000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Hydran X 50 KL 19 4 19 3 24",valor:186300,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Halcon radicular X 46 KLS",valor:224000,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Borozinco X 20 KL",valor:157000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-21",detalle:"Triple 18 X 50 KLS",valor:274400,cat:"Fertilización",cant:2},
+  {fecha:"2025-04-21",detalle:"Abono magfosil X 5",valor:77000,cat:"Fertilización",cant:1},
+  {fecha:"2025-04-22",detalle:"Flete insumos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-04-23",detalle:"JORNAL completo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-20",detalle:"JORNALES fumigar hierba",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-22",detalle:"JORNALES abonada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-23",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-24",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-28",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-04-29",detalle:"JORNALES aplicada gallinaza",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-01",detalle:"JORNALES aplicada gallinaza",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-01",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-02",detalle:"JORNALES termino aplicación gallinaza y fumigada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-06",detalle:"Medio JORNAL fumigar",valor:30000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"gasolina",valor:17000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-05-08",detalle:"JORNAL fumigada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-08",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-12",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-13",detalle:"JORNAL fumigada y mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-14",detalle:"JORNAL fumigada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-14",detalle:"Dunka PARAQUAT X 4 litros",valor:47800,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-05-14",detalle:"Humus passion fruit X 20LT",valor:220000,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Sulfato de magnesion 25 KG",valor:52000,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Klip boro colinagro X KG",valor:27001,cat:"Fertilización",cant:1},
+  {fecha:"2025-05-14",detalle:"Kelasys manganeso X Kg",valor:78200,cat:"Fertilización",cant:2},
+  {fecha:"2025-05-14",detalle:"Fertiraiz X Kg",valor:80000,cat:"Fertilización",cant:2},
+  {fecha:"2025-05-14",detalle:"Cenagro menores X Kg",valor:126000,cat:"Fertilización",cant:6},
+  {fecha:"2025-05-16",detalle:"JORNALES termino fumigada y mantenimiento",valor:120000,cat:"Fertilización",cant:null},
+  {fecha:"2025-05-20",detalle:"Transporte insumos flete",valor:26000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-05-20",detalle:"JORNALES aplicada drench",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-27",detalle:"JORNAL mantenimiento terreno zanjas",valor:60000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-05-28",detalle:"Nutribans X bulto (pago directo Fabian)",valor:570000,cat:"Fertilización",cant:5},
+  {fecha:"2025-05-28",detalle:"25-4-24 Granulado X 50Kg (pago directo Fabian)",valor:625000,cat:"Fertilización",cant:5},
+  {fecha:"2025-05-28",detalle:"Blanqueador hipoclorito Luky 2Lt",valor:3500,cat:"Otros gastos",cant:1},
+  {fecha:"2025-05-29",detalle:"JORNALES abonada",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-05-29",detalle:"Flete abonos transporte",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-03",detalle:"JORNALES descolinar y desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-07",detalle:"JORNALES descolinar y desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-08",detalle:"JORNALES fumigación y descolinar",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-09",detalle:"JORNALES descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-10",detalle:"Pastrol (cletodim) X LT",valor:39000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-06-10",detalle:"JORNALES descolinar y zanjas",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-11",detalle:"JORNALES mantenimiento terreno",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-13",detalle:"Portasys X galón",valor:100000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Spax 80 X Lt",valor:73000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Benoagro benomyl 500WO XKg",valor:56000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Crecifoss X Kg fertilizando",valor:24000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Trombo X Kg GR",valor:76000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Cenagro germinaz X Kg",valor:122000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-13",detalle:"Thiatryn SC X LT",valor:56000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-06-16",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-16",detalle:"JORNAL fumigación sigatoka",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-17",detalle:"JORNAL fumigación suelo",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-06-17",detalle:"Gasolina",valor:5000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-06-19",detalle:"JORNALES fumigacion y mantenimiento terrero",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-01",detalle:"JORNALES fumigacion sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-01",detalle:"Machete peinill A 16 Bellota",valor:44000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Lima triangular 6 Bellota X12",valor:6500,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Cabo de pala",valor:10000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-01",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-01",detalle:"Aceite 2 tiempos",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-01",detalle:"Dorab X Lt",valor:110000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Vigilant X kilo",valor:40000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Agrotop X bulto 50Kg",valor:256000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Cenafos 6 X bulto 50Kg",valor:250000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Nutribans X 50 Kg",valor:456000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Multa X 100 grs",valor:18000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Cal dolomita X 50 Kg",valor:570000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-01",detalle:"Top Sul x GL",valor:70000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Nitrabor Pro ZN X 50 Kl",valor:170500,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-01",detalle:"Sulcamag X 50Kl",valor:87900,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-03",detalle:"JORNALES mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-03",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-04",detalle:"Robendazim 500 SC X LT",valor:28000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-04",detalle:"Renex 720 SC X LT",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-04",detalle:"Agrotin X Lt (coadyudante) Bayer",valor:26775,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Difenex X LT (Difeconazole)",valor:60000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Benevolo X Lt (Azoxystrobin+frutriafol)",valor:95000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"Cenagro Briomenores X Lt",valor:47000,cat:"Fertilización",cant:null},
+  {fecha:"2025-07-04",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-06",detalle:"JORNALES zanjas",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-06",detalle:"JORNALES desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-07",detalle:"JORNALES zanjas",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-07",detalle:"JORNALES desojada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-08",detalle:"JORNALES fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-10",detalle:"Flete cal",valor:60000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-11",detalle:"Gasolina",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-11",detalle:"JORNAL fumigada Sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-12",detalle:"JORNALES aplicación cal",valor:450000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-15",detalle:"Agrotin X Lt (coadyudante) Bayer",valor:26775,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-15",detalle:"Pastrol (cletodim) X galon",valor:145000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-07-16",detalle:"Boquilla abanico estandar",valor:8000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-07-17",detalle:"JORNAL tapada cal",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-17",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-22",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"JORNAL fumigar sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"JORNAL mantenimiento terrenos",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-25",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-28",detalle:"Flete abonos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-07-28",detalle:"JORNAL abonada y tapada fertilizantes",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-28",detalle:"JORNAL abonada fertilizantes",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-30",detalle:"JORNAL descalcetar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-30",detalle:"JORNAL mantenimiento terreno",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-07-31",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-04",detalle:"JORNAL descalcetar Juan",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-06",detalle:"JORNAL descalcetar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-08",detalle:"JORNAL termino despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-10",detalle:"Mistura",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-10",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-10",detalle:"Kruga X Lt (fenbuconazole)",valor:149000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-10",detalle:"Landris X dosis(cipermetrina+Acetamiprid)",valor:17000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-12",detalle:"JORNAL fumigada sigatoka",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-15",detalle:"Ferti Aqua X LT",valor:55000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Razine X 4 Litros",valor:162000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Carbor SC CAB X 4 LT",valor:127000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Agrodyne SL X 1Lt",valor:150000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Biorganik x 20 Kilos",valor:85000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"Numek 1.8 EC X Lt",valor:62000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-15",detalle:"KCL standar precisagro X 50 Kilos",valor:222000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-17",detalle:"Sulfato de magnesio SOL x bultos 25 kg",valor:52000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-18",detalle:"Flete insumos (2)",valor:45000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-18",detalle:"JORNAL aplicada drench",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-18",detalle:"JORNAL aplicada drench Jhony",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-20",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-22",detalle:"Natural Oil X Litro",valor:26500,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-08-22",detalle:"Maicero Nutrición X 50KL",valor:369600,cat:"Fertilización",cant:3},
+  {fecha:"2025-08-22",detalle:"Belkute 40 WP X 120 gr",valor:37000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-08-22",detalle:"Bifixgro X litro",valor:91000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-08-24",detalle:"Gasolina",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-24",detalle:"Aceite 2 tiempos",valor:17500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-08-24",detalle:"JORNAL fumigada sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-27",detalle:"JORNAL abonada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-08-27",detalle:"Flete insumos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-01",detalle:"JORNAL desguascar - despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-03",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-03",detalle:"JORNAL desojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-04",detalle:"Clorotalonil 720SC X litro Casa fertil",valor:26500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-04",detalle:"Microkel boro",valor:36000,cat:"Fertilización",cant:1},
+  {fecha:"2025-09-04",detalle:"Mancozeb Nufarm 80% WP X LT",valor:19500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-08",detalle:"JORNAL despuntar - desguascar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-09",detalle:"JORNAL fumigar sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-09",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-11",detalle:"Platano 14-4-23-4 X 50KL",valor:428000,cat:"Insumos agrícolas",cant:4},
+  {fecha:"2025-09-11",detalle:"KCL nutrición X 50KL",valor:660000,cat:"Insumos agrícolas",cant:6},
+  {fecha:"2025-09-11",detalle:"Magfosil X 50KL",valor:234000,cat:"Insumos agrícolas",cant:3},
+  {fecha:"2025-09-12",detalle:"Glufosinato de amonio 200SL X 4 litros",valor:67850,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-15",detalle:"Flete abonos",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-16",detalle:"Fumigación piso y aplicacion de abono",valor:330000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-18",detalle:"Lima triangular",valor:8000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-09-19",detalle:"JORNAL despuntar - mantenimiento",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-21",detalle:"JORNAL despuntar - desojar - desguascar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-22",detalle:"Biorganik x 20 Kilos",valor:85000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-22",detalle:"Start magnesio X LT",valor:82000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-24",detalle:"Gasolina",valor:10000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-09-24",detalle:"Propiconzole casa fertil 250ec",valor:42000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-09-24",detalle:"JORNAL fumigada sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-28",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-29",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-09-29",detalle:"Potensys ph x lt",valor:41000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Cyprox 100 SL X Lt (Ciproconazol)",valor:58000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Tenaz 250 Sc X Lt (Azoxystrobin)",valor:71000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Fertilita Grosso X lt (calcio, boro, amonio)",valor:33000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-09-29",detalle:"Formador 2000",valor:104000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-09-30",detalle:"JORNAL descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-02",detalle:"gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-02",detalle:"Aceite 2 tiempos",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-02",detalle:"JORNAL fumigada Sigatoka",valor:80000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-09",detalle:"JORNAL desojada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-10",detalle:"JORNAL",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-14",detalle:"Vigilant 80WP X kilo / precisagro",valor:20000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Alargue ecoline x dosis 100cc",valor:28000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Fertilita Frutox X LT",valor:40000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-14",detalle:"Bolsa racimo plátano X 500 unidades",valor:154000,cat:"Fertilización",cant:null},
+  {fecha:"2025-10-16",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-16",detalle:"Tenaz 250 SC XLT",valor:71000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-16",detalle:"Natural Oil X litro",valor:29000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-16",detalle:"Romectin XLT",valor:30000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-17",detalle:"JORNAL deshojar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-17",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-17",detalle:"Disan lleando X 50Kg",valor:740000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Nitroextend X 50 Kg",valor:426000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Nitro calcio X 25 Kg",valor:316000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-17",detalle:"Dap granulado X 50KG",valor:412000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-19",detalle:"JORNAL despuntar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-20",detalle:"Magnitro K X 50 Kl 11-0-30-MG",valor:263000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-10-20",detalle:"JORNALES Abonada",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-10-20",detalle:"Flete abono",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-21",detalle:"JORNALES abonada tapada",valor:120000,cat:"Mano de Obra",cant:2},
+  {fecha:"2025-10-22",detalle:"JORNAL termino tapada y descolinar",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-24",detalle:"JORNAL descolinar termino",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-28",detalle:"Lima",valor:6000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-10-29",detalle:"JORNAL despuntar 28 y 29 octubre",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-10-29",detalle:"Potensys X lt",valor:41000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Benevolo X LItro",valor:95000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Benomyl X KL",valor:54000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-29",detalle:"Formador 2000 X LT",valor:104000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-10-29",detalle:"Mancozeb X LT",valor:22000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-10-31",detalle:"Gasolina",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-10-31",detalle:"JORNAL fumigada sigatoka caneca y media",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-07",detalle:"Bolsa racimo plátano X 500 unidades",valor:154000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-07",detalle:"Benigno (Azozystrobin + Difeconazole)",valor:110000,cat:"Fertilización",cant:null},
+  {fecha:"2025-11-10",detalle:"JORNAL despuntada",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-11",detalle:"BOLSA racimo plátano X 500 unidades",valor:152000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-11",detalle:"Pago de embolsar racimo plátano",valor:415000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-13",detalle:"Manguera de riego",valor:1800000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-14",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-14",detalle:"Gasolina",valor:13000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-19",detalle:"BOLSA racimo plátano X 500 unidades",valor:152000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-20",detalle:"PAGO de embolsar racimo plátano",valor:265000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-25",detalle:"JORNAL",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-26",detalle:"Nativo X litros / AF Bayer",valor:153000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-11-26",detalle:"Renex 720 SC X LT(clorotalonil)",valor:60000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-11-26",detalle:"Fertilita Grosso X lt",valor:66000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-11-26",detalle:"Registros de 2 PVC",valor:36000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Inserto de 2 PVC",valor:16500,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Uniones galvanizadas",valor:48000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-11-26",detalle:"Abrazadera",valor:20000,cat:"Materiales y repuestos",cant:4},
+  {fecha:"2025-11-26",detalle:"Cremallera Pulg 2",valor:45000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-26",detalle:"Reduccion Galvanizada",valor:4500,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-26",detalle:"Soldadura Celta PVC",valor:12500,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-27",detalle:"Gasolina",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-11-27",detalle:"JORNAL fumigada sigatoka",valor:90000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-11-27",detalle:"Filtro anillo 2",valor:150000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-11-27",detalle:"Buje roscado 2",valor:20000,cat:"Materiales y repuestos",cant:2},
+  {fecha:"2025-11-27",detalle:"Acople macho 2",valor:26000,cat:"Materiales y repuestos",cant:2},
+  {fecha:"2025-11-27",detalle:"Teflon industrial",valor:3000,cat:"Otros gastos",cant:1},
+  {fecha:"2025-12-01",detalle:"Tubo presión 2 RD21",valor:13000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-12-01",detalle:"Silleta 16MM para R1500",valor:75000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-01",detalle:"Registro 16MM Manguez",valor:184000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-01",detalle:"Manguera 2",valor:255000,cat:"Materiales y repuestos",cant:1},
+  {fecha:"2025-12-02",detalle:"JORNALES RIEGO",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-02",detalle:"Flete mangueras",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-04",detalle:"JORNAL huecos manguera",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-05",detalle:"Gasolina",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-05",detalle:"JORNALES manguera de riego pequeña",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-09",detalle:"Alargue ecoline x dosis 100cc",valor:28000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-09",detalle:"Bolsa racimo",valor:154000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-10",detalle:"JORNAL fumigada suelo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-11",detalle:"Glonium 280 SL X 4 Ltr",valor:69000,cat:"Insumos agrícolas",cant:null},
+  {fecha:"2025-12-12",detalle:"Manguera de 2 pulgadas",valor:255000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-12",detalle:"JORNALES término riego",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-12",detalle:"Accesorios manguera de riego",valor:7000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-14",detalle:"JORNALES instalación y riego motobomba",valor:140000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-14",detalle:"Motobomba y acoples",valor:3199000,cat:"Activos",cant:null},
+  {fecha:"2025-12-14",detalle:"Flete",valor:20000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2025-12-14",detalle:"ACPM",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-15",detalle:"JORNAL Cuidado noche",valor:60000,cat:"Preparación suelo",cant:null},
+  {fecha:"2025-12-15",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-16",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-16",detalle:"Fibra cono amarre matas",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-17",detalle:"Fibra cosechera",valor:14000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-19",detalle:"JORNALES Adelmo noche",valor:300000,cat:"Mano de Obra",cant:5},
+  {fecha:"2025-12-20",detalle:"JORNALES JUAN NOCHE",valor:600000,cat:"Mano de Obra",cant:10},
+  {fecha:"2025-12-20",detalle:"JORNAL Adelmo noche",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-21",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-22",detalle:"Trailer moto bomba",valor:350000,cat:"Activos",cant:null},
+  {fecha:"2025-12-24",detalle:"Engrosar K550 X Lt / Fertilizando",valor:84000,cat:"Insumos agrícolas",cant:2},
+  {fecha:"2025-12-24",detalle:"Agrofast (Bioestimulante) X lt colinagro",valor:65000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Pirymethanyl dvax litro",valor:55000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Potensys H X Lt",valor:33000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Benomyl 500 WP X KG",valor:56500,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-24",detalle:"Biorganik X KG",valor:26000,cat:"Insumos agrícolas",cant:1},
+  {fecha:"2025-12-28",detalle:"JORNAL hondar hoyo",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-28",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-28",detalle:"JORNAL riego",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-29",detalle:"Sulfato de potasio X 25Kg",valor:125000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Nitrato de calcio + B X 25 Kg",valor:79000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Sulfato de Amonio X 50Kg",valor:90000,cat:"Fertilización",cant:1},
+  {fecha:"2025-12-29",detalle:"Uniones 16MM cinta manguera de riego",valor:10000,cat:"Fertilización",cant:10},
+  {fecha:"2025-12-30",detalle:"JORNAL aplicacion Drench",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2025-12-31",detalle:"Aceite 2 tiempos",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2025-12-31",detalle:"Gasolina",valor:16000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-02",detalle:"JORNAL fumigada Sigatoka",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-07",detalle:"JORNALES corte plátano",valor:180000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-07",detalle:"Venta 32 buena + 10 segunda + 7 pica",valor:1931000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-09",detalle:"Venta por arrobas 57",valor:1886000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-09",detalle:"Flete",valor:50000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-09",detalle:"JORNALES corte de platano",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-13",detalle:"Gasolina",valor:18000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-13",detalle:"Fibra amarre plátano",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-13",detalle:"JORNALES amarre",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-14",detalle:"Corte de plátano (dos señores)",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-15",detalle:"JORNALES",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-15",detalle:"Fibra amarre plátano",valor:12000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-15",detalle:"JORNALES",valor:120000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-16",detalle:"JORNAL amarre matas platano",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-17",detalle:"Venta 67 primera, 24 segunda, 21 pica",valor:6639000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-19",detalle:"Venta 34.4 arrobas",valor:1548000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-19",detalle:"JORNAL corte plátano",valor:60000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-20",detalle:"JORNAL amarre",valor:65000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-20",detalle:"Fibra amarre plátano",valor:34000,cat:"Materiales y repuestos",cant:null},
+  {fecha:"2026-01-21",detalle:"JORNALES amarre",valor:125000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-21",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-22",detalle:"Venta plátano 36.95 arrobas",valor:1700000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-22",detalle:"JORNALES amarre, corte y cargue plátano",valor:186000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-22",detalle:"Venta plátano 61 primera, 19 segunda, 11 pica",valor:6100000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-22",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-23",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-24",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-25",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-26",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-27",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-27",detalle:"Venta plátano 84 primera, 34 segunda, 27 pica",valor:8590000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-27",detalle:"JORNALES plataneada, cargue racimos",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-28",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-29",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNALES plataneada, cargue racimos",valor:210000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"Compra Carretilla",valor:200000,cat:"Activos",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"JORNAL amarres",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-01-30",detalle:"Venta 87 primera, 43 segunda, 19 pica",valor:8700000,cat:"Ingresos",cant:null},
+  {fecha:"2026-01-31",detalle:"Aceite shell",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-01-31",detalle:"JORNAL NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-01",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-02",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-03",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-03",detalle:"JORNAL terreno",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"ACPM tractor, mechones",valor:50000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-04",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"JORNALES plataneada, cargue racimos (3 jornales)",valor:260000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-04",detalle:"Venta 72 primera, 73 segunda, 79 pica",valor:11690000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-04",detalle:"TRACTOR cargue",valor:200000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-05",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-05",detalle:"ACPM mechones",valor:13000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-06",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-06",detalle:"JORNAL amarre",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-07",detalle:"ACPM",valor:30000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-07",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"JORNALES corte de platano (2 trabajadores)",valor:160000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"TRACTOR cargue",valor:155000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-08",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-09",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-10",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-10",detalle:"ACPM",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-11",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-11",detalle:"ACPM préstamo de Daniel",valor:34000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-08",detalle:"Venta 67 primera 39 segunda 48 pica",valor:9096000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-12",detalle:"ACPM",valor:27000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"JORNALES plataneada corte",valor:210000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-12",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"TRACTOR cargue",valor:195000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-13",detalle:"VENTA platano 35 arrobas",valor:1470000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-13",detalle:"Gaseosa",valor:15000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"Bolsas empacar plátano",valor:20000,cat:"Otros gastos",cant:null},
+  {fecha:"2026-02-13",detalle:"VENTA platano 83 buenas, 58 segunda, 53 pica",valor:11272000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-14",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-15",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-16",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-17",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-18",detalle:"JORNALES NOCHE",valor:70000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-19",detalle:"VENTA plátano 35 buenas, 31 buenas, 46 pica",valor:4615000,cat:"Ingresos",cant:null},
+  {fecha:"2026-02-19",detalle:"JORNALES plataneada",valor:150000,cat:"Mano de Obra",cant:null},
+  {fecha:"2026-02-19",detalle:"TRACTOR cargue",valor:112000,cat:"Mano de Obra",cant:null},
+];
+
+// ══════════════════════════════════════════
+//  GANTT DATA
+// ══════════════════════════════════════════
+const MONTHS = [
+  {key:"2025-02",label:"Feb 25"},{key:"2025-03",label:"Mar 25"},{key:"2025-04",label:"Abr 25"},
+  {key:"2025-05",label:"May 25"},{key:"2025-06",label:"Jun 25"},{key:"2025-07",label:"Jul 25"},
+  {key:"2025-08",label:"Ago 25"},{key:"2025-09",label:"Sep 25"},{key:"2025-10",label:"Oct 25"},
+  {key:"2025-11",label:"Nov 25"},{key:"2025-12",label:"Dic 25"},{key:"2026-01",label:"Ene 26"},
+  {key:"2026-02",label:"Feb 26"},{key:"2026-03",label:"Mar 26"},{key:"2026-04",label:"Abr 26"},
+  {key:"2026-05",label:"May 26"},{key:"2026-06",label:"Jun 26"},{key:"2026-07",label:"Jul 26"},
+  {key:"2026-08",label:"Ago 26"},{key:"2026-09",label:"Sep 26"},{key:"2026-10",label:"Oct 26"},
+  {key:"2026-11",label:"Nov 26"},{key:"2026-12",label:"Dic 26"},
+];
+
+let GANTT_TASKS = [
+  {id:1,label:"🌱 FASE 1: Establecimiento",type:"phase",start:"2025-02",end:"2025-04",progress:100,cost:14000000,realCost:0,critical:false,notes:"Preparación, siembra y resiembra"},
+  {id:2,label:"Análisis de suelos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:160000,realCost:160000,critical:false,notes:"Análisis químico y físico para plan de fertilización"},
+  {id:3,label:"Mecanización y tableado",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:810000,realCost:810000,critical:false,notes:"Mecanizada + tableado del terreno"},
+  {id:4,label:"Siembra colinos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:3288600,realCost:3288600,critical:true,notes:"Compra y siembra de colinos seleccionados"},
+  {id:5,label:"Resiembra y ajuste",type:"task",parent:1,start:"2025-03",end:"2025-04",progress:100,cost:540000,realCost:540000,critical:false,notes:"Resiembra con 200 colinos adicionales"},
+  {id:6,label:"🌿 FASE 2: Desarrollo vegetativo",type:"phase",start:"2025-04",end:"2025-08",progress:100,cost:22000000,realCost:0,critical:false,notes:"Nutrición, control fitosanitario, mantenimiento"},
+  {id:7,label:"Plan de fertilización (1ª abonada)",type:"task",parent:6,start:"2025-04",end:"2025-04",progress:100,cost:3165900,realCost:3165900,critical:true,notes:"DAP, KCL, Triple18, Gallinaza, foliares"},
+  {id:8,label:"Control sigatoka — ciclos fumigación",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:2500000,realCost:0,critical:true,notes:"Fumigación quincenal con fungicidas sistémicos"},
+  {id:9,label:"Mantenimiento terreno / deshierbe",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:1200000,realCost:0,critical:false,notes:"Jornales periódicos de desyerbe y mantenimiento"},
+  {id:10,label:"2ª abonada — foliares y edáficos",type:"task",parent:6,start:"2025-05",end:"2025-05",progress:100,cost:1898201,realCost:1898201,critical:true,notes:"Nutribans, foliares, drench de raíz"},
+  {id:11,label:"3ª abonada — cal + correctivos",type:"task",parent:6,start:"2025-07",end:"2025-07",progress:100,cost:1687175,realCost:1687175,critical:true,notes:"Cal dolomita, fertis, foliares sigatoka"},
+  {id:12,label:"Instalación sistema de riego",type:"task",parent:6,start:"2025-11",end:"2025-12",progress:100,cost:6000000,realCost:5774000,critical:true,notes:"Motobomba, mangueras, instalación completa"},
+  {id:13,label:"🍌 FASE 3: Llenado y cosecha",type:"phase",start:"2025-10",end:"2026-04",progress:75,cost:18000000,realCost:0,critical:false,notes:"Embolse, amarre, primera cosecha"},
+  {id:14,label:"Embolse de racimos",type:"task",parent:13,start:"2025-10",end:"2026-02",progress:80,cost:1200000,realCost:726000,critical:true,notes:"Bolsas protectoras, registro semanal de racimos embolsados"},
+  {id:15,label:"Amarre y soporte de matas",type:"task",parent:13,start:"2025-12",end:"2026-06",progress:60,cost:400000,realCost:280000,critical:false,notes:"Fibra de amarre para plantas con racimo"},
+  {id:16,label:"Primera cosecha 🎉",type:"task",parent:13,start:"2026-01",end:"2026-01",progress:100,cost:500000,realCost:180000,critical:true,notes:"¡Primera venta: $1.931.000! (ene 7, 2026)"},
+  {id:17,label:"Cosechas continuas",type:"task",parent:13,start:"2026-01",end:"2026-09",progress:40,cost:2000000,realCost:0,critical:false,notes:"Corte semanal según maduración racimos"},
+  {id:18,label:"Vigilancia nocturna cultivo",type:"task",parent:13,start:"2025-12",end:"2026-04",progress:70,cost:1500000,realCost:1130000,critical:false,notes:"Jornales nocturnos para protección del cultivo"},
+  {id:19,label:"♻️ FASE 4: Mantenimiento — 2do ciclo",type:"phase",start:"2026-03",end:"2026-12",progress:0,cost:15000000,realCost:0,critical:false,notes:"Preparación segundo ciclo productivo"},
+  {id:20,label:"Descolinar — selección de hijos",type:"task",parent:19,start:"2026-03",end:"2026-05",progress:0,cost:800000,realCost:0,critical:true,notes:"Dejar 1 hijo seleccionado por planta"},
+  {id:21,label:"4ª abonada — 2do ciclo",type:"task",parent:19,start:"2026-04",end:"2026-04",progress:0,cost:3000000,realCost:0,critical:true,notes:"Plan nutricional completo para hijo seleccionado"},
+  {id:22,label:"Control de plagas — Moko, picudo",type:"task",parent:19,start:"2026-03",end:"2026-12",progress:0,cost:1200000,realCost:0,critical:true,notes:"Inspección semanal y aplicación preventiva"},
+  {id:23,label:"Renovación del sistema de riego",type:"task",parent:19,start:"2026-06",end:"2026-07",progress:0,cost:1500000,realCost:0,critical:false,notes:"Mantenimiento y ampliación red de riego"},
+];
+
+// ══════════════════════════════════════════
+//  BUENAS PRÁCTICAS
+// ══════════════════════════════════════════
+const BUENAS_PRACTICAS = [
+  {
+    titulo:"🌱 Selección y Preparación del Terreno",
+    headerClass:"ph-green",
+    items:[
+      {icon:"✅",text:"Realizar análisis de suelo ANTES de sembrar para determinar pH (ideal 5.5–7.0), nutrientes y textura."},
+      {icon:"✅",text:"El pH óptimo para plátano es 5.5 a 6.5. Aplicar cal dolomita si el suelo es ácido (pH < 5.5)."},
+      {icon:"✅",text:"Asegurarse de que el terreno tenga buen drenaje natural o construir zanjas de drenaje. Plátano no tolera encharcamientos."},
+      {icon:"✅",text:"Preparar el suelo con mecanización (arado, rastrillado) antes de la siembra para romper capas compactadas."},
+      {icon:"✅",text:"Definir el trazado y densidad de siembra: 3×3 m (1.111 plantas/ha) o 2×2.5 m para alta densidad."},
+    ]
+  },
+  {
+    titulo:"🌿 Siembra y Material de Propagación",
+    headerClass:"ph-brown",
+    items:[
+      {icon:"✅",text:"Usar colinos sanos, de buena procedencia, libres de picudo (Cosmopolites sordidus) y Moko (Ralstonia solanacearum)."},
+      {icon:"✅",text:"Limpiar y desinfectar los colinos antes de sembrar: sumergir en solución de insecticida + fungicida."},
+      {icon:"✅",text:"La profundidad de siembra debe ser de 20-30 cm, colocando el cormo de forma que la yema quede cubierta."},
+      {icon:"✅",text:"Realizar resiembra en las primeras 4 semanas para corregir mortalidad y garantizar densidad objetivo."},
+      {icon:"✅",text:"Registrar el número de colinos sembrados, procedencia y fecha para llevar trazabilidad completa."},
+    ]
+  },
+  {
+    titulo:"💧 Fertilización y Nutrición",
+    headerClass:"ph-blue",
+    items:[
+      {icon:"✅",text:"Primera abonada: a los 30-45 días después de siembra. Usar fórmulas completas (N-P-K) + micronutrientes."},
+      {icon:"✅",text:"Programa mínimo de 4 fertilizaciones anuales. El plátano es muy exigente en K (Potasio) y N (Nitrógeno)."},
+      {icon:"✅",text:"Fertilización foliar cada 15-20 días para complementar la edáfica. Incluir boro, zinc y magnesio."},
+      {icon:"✅",text:"La Gallinaza es un excelente abono orgánico; aplicar 5-10 kg/planta para mejorar estructura del suelo."},
+      {icon:"✅",text:"Drench radicular con bioestimulantes (humus, biorganik) favorece el desarrollo radicular y absorción."},
+      {icon:"✅",text:"Registrar cada aplicación: producto, dosis, área, operario y fecha. ¡La trazabilidad es clave!"},
+    ]
+  },
+  {
+    titulo:"🦠 Manejo Fitosanitario",
+    headerClass:"ph-purple",
+    items:[
+      {icon:"⚠️",text:"Sigatoka negra (Mycosphaerella fijiensis): principal amenaza. Fumigación cada 14-21 días con fungicidas sistémicos (propiconazole, azoxystrobin, trifloxystrobin)."},
+      {icon:"⚠️",text:"Moko bacteriano (Ralstonia solanacearum): erradicar plantas enfermas de inmediato. No llevar herramientas sin desinfectar entre lotes."},
+      {icon:"⚠️",text:"Picudo negro (Cosmopolites sordidus): instalar trampas con atrayente. Aplicar insecticida drench si hay infestación."},
+      {icon:"✅",text:"Rotación de fungicidas para evitar resistencia. Usar al menos 3 moléculas activas distintas en el ciclo."},
+      {icon:"✅",text:"Llevar registro semanal de incidencia de enfermedades, severidad (% hoja afectada) y acción tomada."},
+      {icon:"✅",text:"Deshoje sanitario: eliminar hojas con más del 50% de área foliar afectada por sigatoka."},
+    ]
+  },
+  {
+    titulo:"🌾 Labores Culturales",
+    headerClass:"ph-orange",
+    items:[
+      {icon:"✅",text:"Deshije/descolinar: dejar 1 hijo por planta (hijo de espada preferiblemente). Eliminar los demás cada 30-45 días."},
+      {icon:"✅",text:"Despunte: eliminar la flor masculina (mancuerna) a los 7-10 días de aparecida la inflorescencia."},
+      {icon:"✅",text:"Embolse del racimo: fundamental para proteger contra insectos, rozamiento y mejorar calidad. Hacer al momento de aparición de inflorescencia."},
+      {icon:"✅",text:"Desgüasque: eliminar hojas secas y guías para evitar acumulación de humedad y focos de enfermedades."},
+      {icon:"✅",text:"Amarre y soporte: en plantas con racimo grande usar tutores o amarres para evitar volcamiento."},
+      {icon:"✅",text:"Control de malezas manual o herbicidas selectivos. Evitar compactación del suelo con maquinaria pesada."},
+    ]
+  },
+  {
+    titulo:"🍌 Cosecha y Postcosecha",
+    headerClass:"ph-yellow",
+    items:[
+      {icon:"✅",text:"Cosechar cuando el racimo tenga el grado de llenado adecuado según destino: mercado local (más maduro) o exportación (más verde)."},
+      {icon:"✅",text:"El tiempo de cosecha varía entre 9-14 meses según variedad, altitud y manejo. Llevar registro de la fecha de embolse para planificar el corte."},
+      {icon:"✅",text:"Usar machete bien afilado y desinfectado para cortar el vástago. Evitar magulladuras en los dedos."},
+      {icon:"✅",text:"Registrar cada cosecha: fecha, número de racimos, peso, calidad (primera, segunda, pica) y precio de venta."},
+      {icon:"✅",text:"Calcular rentabilidad por cosecha: ingresos - costos operativos del período para tomar decisiones de inversión."},
+      {icon:"✅",text:"Para el 2do ciclo: seleccionar el mejor hijo de espada durante la cosecha del primer ciclo."},
+    ]
+  },
+];
+
+// ══════════════════════════════════════════
+//  ESTADO Y HELPERS
+
+// ══════════════════════════════════════════
+//  FIREBASE / CLOUD LAYER
+// ══════════════════════════════════════════
+let db = null;
+let auth = null;
+let unsubscribeSnapshot = null;
+let cloudMode = false;     // true = Firebase activo
+let currentUser = null;
+let authIsRegister = false;
+let data = [];              // working array (populated from Firestore or local DB)
+const LOCAL_KEY = 'agroplatano_local_data';
+const FB_CONFIG_KEY = 'agroplatano_fb_config';
+
+// ── Recover stored config
+function loadStoredConfig() {
+  try {
+    const raw = localStorage.getItem(FB_CONFIG_KEY);
+    if(raw) return JSON.parse(raw);
+  } catch(e) {}
+  return null;
+}
+
+// ── Initialize on page load
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('regFecha').value = new Date().toISOString().split('T')[0];
+  const stored = loadStoredConfig();
+  if(stored) {
+    // auto-reconnect
+    document.getElementById('fbApiKey').value = stored.apiKey || '';
+    document.getElementById('fbAuthDomain').value = stored.authDomain || '';
+    document.getElementById('fbProjectId').value = stored.projectId || '';
+    connectFirebase(true);
+  }
+  // otherwise setupScreen stays visible
+});
+
+// ── Connect to Firebase
+async function connectFirebase(silent = false) {
+  const apiKey     = document.getElementById('fbApiKey').value.trim();
+  const authDomain = document.getElementById('fbAuthDomain').value.trim();
+  const projectId  = document.getElementById('fbProjectId').value.trim();
+
+  if(!apiKey || !authDomain || !projectId) {
+    if(!silent) showToast('⚠️ Completa los tres campos de configuración');
+    return;
+  }
+
+  setConnBadge('connecting','Conectando…');
+
+  try {
+    // Prevent duplicate init
+    if(!firebase.apps.length) {
+      firebase.initializeApp({ apiKey, authDomain, projectId, storageBucket: projectId+'.appspot.com' });
+    }
+    db   = firebase.firestore();
+    auth = firebase.auth();
+
+    // Save config for auto-reconnect
+    localStorage.setItem(FB_CONFIG_KEY, JSON.stringify({ apiKey, authDomain, projectId }));
+
+    cloudMode = true;
+    document.getElementById('setupScreen').style.display = 'none';
+
+    // Auth state listener
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      updateAuthBar(user);
+      if(user) {
+        subscribeToData();
+      } else {
+        // Anonymous sign-in as fallback so Firestore rules can allow read
+        auth.signInAnonymously().catch(() => {});
+        subscribeToData();
+      }
+    });
+
+    setConnBadge('connected','☁️ Nube activa');
+    initApp();
+
+  } catch(err) {
+    setConnBadge('disconnected','Sin conexión');
+    if(!silent) showToast('❌ Error al conectar: ' + err.message);
+    else useLocalMode(); // fallback if auto-reconnect fails
+  }
+}
+
+// ── Use without cloud
+function useLocalMode() {
+  cloudMode = false;
+  document.getElementById('setupScreen').style.display = 'none';
+  setConnBadge('disconnected','💻 Modo local');
+  // Load from localStorage if exists, else load historical DB
+  const raw = localStorage.getItem(LOCAL_KEY);
+  if(raw) {
+    try { data = JSON.parse(raw); } catch(e) { data = [...DB]; }
+  } else {
+    data = [...DB]; // historical data as starting point
+  }
+  initApp();
+}
+
+// ── Firestore real-time listener
+function subscribeToData() {
+  if(unsubscribeSnapshot) unsubscribeSnapshot();
+  if(!db) return;
+
+  setConnBadge('connecting','Sincronizando…');
+  unsubscribeSnapshot = db.collection('registros')
+    .orderBy('fecha', 'desc')
+    .onSnapshot(snapshot => {
+      if(snapshot.empty) {
+        // First time: seed with historical data
+        seedHistoricalData();
+      } else {
+        data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        setConnBadge('connected','☁️ Sincronizado');
+        refreshAll();
+      }
+    }, err => {
+      setConnBadge('disconnected','Sin conexión');
+      console.error('Firestore error:', err);
+    });
+
+  // Also subscribe to gantt tasks
+  subscribeGantt();
+}
+
+// ── Seed DB with historical data (only on first use)
+async function seedHistoricalData() {
+  if(!db || !cloudMode) return;
+  showToast('⏳ Cargando datos históricos en la nube…');
+  const batch = db.batch();
+  DB.forEach(item => {
+    const ref = db.collection('registros').doc();
+    batch.set(ref, { fecha: item.fecha, detalle: item.detalle, valor: item.valor, cat: item.cat, cant: item.cant || null });
+  });
+  try {
+    await batch.commit();
+    showToast('✅ Datos históricos cargados en Firebase');
+  } catch(e) {
+    showToast('⚠️ Error al cargar datos iniciales: ' + e.message);
+  }
+}
+
+// ── Subscribe to Gantt tasks in Firestore
+function subscribeGantt() {
+  if(!db) return;
+  db.collection('gantt').onSnapshot(snapshot => {
+    if(!snapshot.empty) {
+      snapshot.docs.forEach(d => {
+        const remote = d.data();
+        const local = GANTT_TASKS.find(t => t.id === remote.id);
+        if(local) {
+          local.progress = remote.progress ?? local.progress;
+          local.realCost  = remote.realCost ?? local.realCost;
+        }
+      });
+    }
+  }, ()=>{});
+}
+
+// ── Save Gantt task to Firestore
+async function saveGanttToCloud(task) {
+  if(!db || !cloudMode) return;
+  try {
+    await db.collection('gantt').doc(String(task.id)).set({
+      id: task.id, progress: task.progress, realCost: task.realCost
+    }, { merge: true });
+  } catch(e) {}
+}
+
+// ── ADD registro (cloud or local)
+async function addRegistro() {
+  const fecha   = document.getElementById('regFecha').value;
+  const cat     = document.getElementById('regCategoria').value;
+  const valor   = parseFloat(document.getElementById('regValor').value);
+  const detalle = document.getElementById('regDetalle').value;
+  const cant    = parseFloat(document.getElementById('regCantidad').value) || null;
+  if(!fecha || !valor || !detalle) { showToast('⚠️ Completa fecha, detalle y valor'); return; }
+
+  const registro = { fecha, cat, valor, detalle, cant };
+
+  if(cloudMode && db) {
+    try {
+      await db.collection('registros').add(registro);
+      // Firestore listener updates data[] automatically
+    } catch(e) { showToast('❌ Error al guardar: ' + e.message); }
+  } else {
+    data.push(registro);
+    saveLocal();
+    refreshAll();
+  }
+
+  document.getElementById('regFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('regValor').value = '';
+  document.getElementById('regDetalle').value = '';
+  document.getElementById('regCantidad').value = '';
+  showToast('✅ Registro guardado' + (cloudMode ? ' en la nube' : ' localmente'));
+}
+
+// ── DELETE registro
+async function deleteReg(id, arrayIdx) {
+  if(!confirm('¿Eliminar este registro?')) return;
+  if(cloudMode && db && id) {
+    try {
+      await db.collection('registros').doc(id).delete();
+    } catch(e) { showToast('❌ Error al eliminar: ' + e.message); }
+  } else {
+    data.splice(arrayIdx, 1);
+    saveLocal();
+    refreshAll();
+  }
+}
+
+// ── RESET all data
+async function executeReset() {
+  document.getElementById('resetModal').classList.remove('open');
+  if(cloudMode && db) {
+    showToast('⏳ Borrando todos los registros de la nube…');
+    try {
+      const snap = await db.collection('registros').get();
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      const snapG = await db.collection('gantt').get();
+      const batchG = db.batch();
+      snapG.docs.forEach(d => batchG.delete(d.ref));
+      await batchG.commit();
+      showToast('✅ Todos los datos eliminados de la nube');
+    } catch(e) { showToast('❌ Error al borrar: ' + e.message); }
+  } else {
+    data = [];
+    saveLocal();
+    refreshAll();
+    showToast('✅ Datos eliminados en modo local');
+  }
+  GANTT_TASKS.forEach(t => { t.progress = 0; t.realCost = 0; });
+}
+
+// ── SAVE Gantt progress (override to also push to cloud)
+async function saveProgress(id) {
+  const val = parseInt(document.getElementById('progressSlider').value);
+  const t = GANTT_TASKS.find(t => t.id === id);
+  if(t) {
+    t.progress = val;
+    await saveGanttToCloud(t);
+    renderGantt();
+  }
+  closeModal();
+}
+
+// ── Local save helper
+function saveLocal() {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(data)); } catch(e) {}
+}
+
+// ── Connection badge
+function setConnBadge(state, text) {
+  const badge = document.getElementById('connBadge');
+  if(!badge) return;
+  badge.className = 'connected disconnected connecting'.split(' ').reduce((c,cl) => c.replace(cl,''), badge.className);
+  badge.classList.add(state);
+  document.getElementById('connText').textContent = text;
+}
+
+// ── Auth UI
+function updateAuthBar(user) {
+  const bar = document.getElementById('authBar');
+  if(!user || user.isAnonymous) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  const name = user.displayName || user.email || 'Usuario';
+  document.getElementById('authName').textContent = name;
+  document.getElementById('authAvatar').textContent = name.charAt(0).toUpperCase();
+}
+
+function openAuthModal() {
+  if(currentUser && !currentUser.isAnonymous) {
+    // Logged in — show logout option
+    if(confirm('¿Cerrar sesión?')) { auth.signOut(); }
+    return;
+  }
+  if(!cloudMode) { showToast('Activa la conexión Firebase primero'); return; }
+  document.getElementById('authModal').classList.add('open');
+}
+function closeAuthModal() { document.getElementById('authModal').classList.remove('open'); }
+
+function toggleAuthMode() {
+  authIsRegister = !authIsRegister;
+  document.getElementById('authModalTitle').textContent = authIsRegister ? 'Crear cuenta' : 'Iniciar sesión';
+  document.querySelector('#authModal [onclick="doEmailAuth()"]').textContent = authIsRegister ? 'Crear cuenta' : 'Iniciar sesión';
+  document.querySelector('#authModal [onclick="toggleAuthMode()"]').textContent = authIsRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate';
+}
+
+async function doEmailAuth() {
+  const email = document.getElementById('authEmail').value;
+  const pass  = document.getElementById('authPass').value;
+  const errEl = document.getElementById('authError');
+  errEl.style.display = 'none';
+  try {
+    if(authIsRegister) {
+      await auth.createUserWithEmailAndPassword(email, pass);
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+    closeAuthModal();
+    showToast('✅ Sesión iniciada');
+  } catch(e) {
+    errEl.style.display = 'block';
+    errEl.textContent = e.message;
+  }
+}
+
+async function doGoogleAuth() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    closeAuthModal();
+    showToast('✅ Conectado con Google');
+  } catch(e) {
+    document.getElementById('authError').style.display = 'block';
+    document.getElementById('authError').textContent = e.message;
+  }
+}
+
+// ── Helpers (unchanged from v2)
+const fmt = v => '$' + Math.round(v).toLocaleString('es-CO');
+const fmtDate = d => { const [y,m,dd] = d.split('-'); return `${dd}/${m}/${y}`; };
+const monthOf = fecha => fecha.substring(0,7);
+
+function catBadge(cat) {
+  const map = {
+    'Preparación suelo':'b-preparacion','Siembra':'b-siembra','Mano de Obra':'b-manoobra',
+    'Insumos agrícolas':'b-insumos','Fertilización':'b-fertilizacion','Otros gastos':'b-otros',
+    'Materiales y repuestos':'b-materiales','Activos':'b-activos','Ingresos':'b-ingresos'
+  };
+  return `<span class="badge ${map[cat]||''}">${cat||'—'}</span>`;
+}
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = ['dashboard','registros','programacion','practicas','reportes'].indexOf(id);
+  document.querySelectorAll('.nav-tab')[idx].classList.add('active');
+  if(id==='programacion') renderGantt();
+  if(id==='reportes') renderReportes();
+  if(id==='practicas') renderPracticas();
+}
+
+function showSubTab(tabId, section) {
+  const parent = document.getElementById(section);
+  parent.querySelectorAll('[id^="rep-"]').forEach(el => el.style.display='none');
+  parent.querySelectorAll('.sub-tab').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).style.display = '';
+  event.target.classList.add('active');
+  if(tabId==='rep-cat') renderCatReport();
+  if(tabId==='rep-rentab') renderRentab();
+}
+
+function refreshAll() {
+  renderDashboard();
+  renderTable();
+}
+
+// ══════════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard() {
+  const gastos = data.filter(d => d.cat !== 'Ingresos');
+  const ingresos = data.filter(d => d.cat === 'Ingresos');
+  const totalGasto = gastos.reduce((s,d) => s+d.valor, 0);
+  const totalIngreso = ingresos.reduce((s,d) => s+d.valor, 0);
+  const balance = totalIngreso - totalGasto;
+  const bycat = {};
+  gastos.forEach(d => { bycat[d.cat] = (bycat[d.cat]||0) + d.valor; });
+
+  document.getElementById('kpiGrid').innerHTML = `
+    <div class="kpi kpi-cost"><div class="kpi-label">Total Gastos Acumulados</div><div class="kpi-value">${fmt(totalGasto)}</div><div class="kpi-sub">Feb 2025 – presente</div></div>
+    <div class="kpi kpi-income"><div class="kpi-label">Total Ingresos (Ventas)</div><div class="kpi-value">${fmt(totalIngreso)}</div><div class="kpi-sub">Cosecha 2026</div></div>
+    <div class="kpi kpi-balance"><div class="kpi-label">Balance Neto</div><div class="kpi-value" style="color:${balance>=0?'var(--verde-vivo)':'var(--rojo)'}">${fmt(balance)}</div><div class="kpi-sub">${balance>=0?'Excedente':'Déficit'}</div></div>
+    <div class="kpi kpi-mano"><div class="kpi-label">Mano de Obra</div><div class="kpi-value">${fmt(bycat['Mano de Obra']||0)}</div><div class="kpi-sub">${((bycat['Mano de Obra']||0)/totalGasto*100).toFixed(1)}% del gasto</div></div>
+    <div class="kpi kpi-ferti"><div class="kpi-label">Fertilización</div><div class="kpi-value">${fmt(bycat['Fertilización']||0)}</div><div class="kpi-sub">${((bycat['Fertilización']||0)/totalGasto*100).toFixed(1)}% del gasto</div></div>
+    <div class="kpi kpi-warn"><div class="kpi-label">N° Transacciones</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">${gastos.length} gastos · ${ingresos.length} ingresos</div></div>
+  `;
+  renderDonut(bycat, totalGasto);
+  renderMonthlyBars();
+  renderFlujoBars();
+  renderIngresosMini();
+  const recent = [...data].sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,10);
+  document.getElementById('recentTxTable').innerHTML = recent.map(r => `
+    <tr><td>${fmtDate(r.fecha)}</td><td>${r.detalle}</td><td>${catBadge(r.cat)}</td>
+    <td style="font-family:'DM Mono',monospace;font-weight:500;color:${r.cat==='Ingresos'?'var(--verde-vivo)':'var(--gris-texto)'}">${r.cat==='Ingresos'?'+':'-'}${fmt(r.valor)}</td></tr>
+  `).join('');
+}
+
+const COLORS = ['#3d8b5e','#e8833a','#6ab187','#f5c842','#8b6b47','#2980b9','#9b59b6','#c0392b','#1abc9c'];
+const CAT_ORDER = ['Mano de Obra','Fertilización','Insumos agrícolas','Siembra','Preparación suelo','Activos','Materiales y repuestos','Otros gastos'];
+
+function renderDonut(bycat, total) {
+  const cats = CAT_ORDER.filter(c => bycat[c]);
+  const svg = document.getElementById('donutSvg');
+  const R = 70, r = 42, cx = 80, cy = 80;
+  let startAngle = -Math.PI/2;
+  let paths = '';
+  cats.forEach((cat,i) => {
+    const pct = bycat[cat]/total;
+    const end = startAngle + pct*2*Math.PI;
+    const x1 = cx + R*Math.cos(startAngle), y1 = cy + R*Math.sin(startAngle);
+    const x2 = cx + R*Math.cos(end), y2 = cy + R*Math.sin(end);
+    const ix1 = cx + r*Math.cos(startAngle), iy1 = cy + r*Math.sin(startAngle);
+    const ix2 = cx + r*Math.cos(end), iy2 = cy + r*Math.sin(end);
+    const large = pct > 0.5 ? 1 : 0;
+    paths += `<path d="M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${r},${r} 0 ${large},0 ${ix1},${iy1} Z" fill="${COLORS[i%COLORS.length]}" opacity="0.9"><title>${cat}: ${fmt(bycat[cat])}</title></path>`;
+    startAngle = end;
+  });
+  svg.innerHTML = paths + `<text x="${cx}" y="${cy-6}" text-anchor="middle" font-size="9" fill="#94a3b8" font-family="Inter">TOTAL</text><text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="11" fill="#1a3a2a" font-weight="600" font-family="DM Mono">${(total/1000000).toFixed(1)}M</text>`;
+  document.getElementById('donutLegend').innerHTML = cats.map((cat,i) => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <span class="legend-name">${cat}</span>
+      <span class="legend-val">${fmt(bycat[cat])}</span>
+      <span class="legend-pct">${(bycat[cat]/total*100).toFixed(1)}%</span>
+    </div>
+  `).join('');
+}
+
+function renderMonthlyBars() {
+  const monthData = {};
+  MONTHS.slice(0,13).forEach(m => { monthData[m.key] = {gasto:0,ingreso:0}; });
+  data.forEach(d => {
+    const k = monthOf(d.fecha);
+    if(!monthData[k]) return;
+    if(d.cat==='Ingresos') monthData[k].ingreso += d.valor;
+    else monthData[k].gasto += d.valor;
+  });
+  const maxVal = Math.max(...Object.values(monthData).map(v=>v.gasto), 1);
+  const container = document.getElementById('monthlyBars');
+  container.innerHTML = Object.entries(monthData).map(([k,v]) => {
+    const h = Math.max(4, (v.gasto/maxVal)*160);
+    return `<div class="bar-col"><div class="bar-inner" style="height:${h}px;background:linear-gradient(to top,var(--verde-vivo),var(--verde-claro))" data-tip="${MONTHS.find(m=>m.key===k)?.label}: ${fmt(v.gasto)}"></div><div class="bar-lbl">${MONTHS.find(m=>m.key===k)?.label||k}</div></div>`;
+  }).join('');
+}
+
+function renderFlujoBars() {
+  const months = MONTHS.slice(0,13);
+  const byM = {};
+  months.forEach(m => { byM[m.key] = {gasto:0}; });
+  data.forEach(d => {
+    const k = monthOf(d.fecha);
+    if(byM[k] && d.cat!=='Ingresos') byM[k].gasto += d.valor;
+  });
+  const maxAcc = 50000000;
+  const bars = document.getElementById('flujoBars');
+  let accG = 0;
+  bars.innerHTML = months.map(m => {
+    accG += (byM[m.key]?.gasto||0);
+    const hG = Math.max(4,(accG/maxAcc)*140);
+    return `<div class="bar-col"><div class="bar-inner" style="height:${hG}px;background:linear-gradient(to top,var(--naranja),#f5c842)" data-tip="Gastado acum. ${m.label}: ${fmt(accG)}"></div><div class="bar-lbl">${m.label}</div></div>`;
+  }).join('');
+}
+
+function renderIngresosMini() {
+  const ene = data.filter(d=>d.cat==='Ingresos'&&monthOf(d.fecha)==='2026-01').reduce((s,d)=>s+d.valor,0);
+  const feb = data.filter(d=>d.cat==='Ingresos'&&monthOf(d.fecha)==='2026-02').reduce((s,d)=>s+d.valor,0);
+  const costoEne = data.filter(d=>d.cat!=='Ingresos'&&monthOf(d.fecha)==='2026-01').reduce((s,d)=>s+d.valor,0);
+  const costoFeb = data.filter(d=>d.cat!=='Ingresos'&&monthOf(d.fecha)==='2026-02').reduce((s,d)=>s+d.valor,0);
+  document.getElementById('ingresosMini').innerHTML = `
+    <div class="mini-metric"><span class="mini-metric-label">🟢 Ingresos Ene 2026</span><span class="mini-metric-val">${fmt(ene)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">🔴 Costos Ene 2026</span><span class="mini-metric-val">${fmt(costoEne)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">📊 Margen Ene 2026</span><span class="mini-metric-val" style="color:${ene-costoEne>=0?'var(--verde-vivo)':'var(--rojo)'}">${fmt(ene-costoEne)}</span></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #f1f5f9">
+    <div class="mini-metric"><span class="mini-metric-label">🟢 Ingresos Feb 2026</span><span class="mini-metric-val">${fmt(feb)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">🔴 Costos Feb 2026</span><span class="mini-metric-val">${fmt(costoFeb)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">📊 Margen Feb 2026</span><span class="mini-metric-val" style="color:${feb-costoFeb>=0?'var(--verde-vivo)':'var(--rojo)'}">${fmt(feb-costoFeb)}</span></div>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  REGISTROS TABLE
+// ══════════════════════════════════════════
+function renderTable() {
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  const cat    = document.getElementById('filterCategoria').value;
+  const mes    = document.getElementById('filterMes').value;
+  let filtered = data.filter(d => {
+    if(cat && d.cat !== cat) return false;
+    if(mes && monthOf(d.fecha) !== mes) return false;
+    if(search && !d.detalle.toLowerCase().includes(search) && !d.cat.toLowerCase().includes(search)) return false;
+    return true;
+  }).sort((a,b)=>b.fecha.localeCompare(a.fecha));
+
+  document.getElementById('registrosTable').innerHTML = filtered.map((r,i) => `
+    <tr>
+      <td>${fmtDate(r.fecha)}</td>
+      <td>${r.detalle}</td>
+      <td>${catBadge(r.cat)}</td>
+      <td style="text-align:center">${r.cant||'—'}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:500;color:${r.cat==='Ingresos'?'var(--verde-vivo)':'var(--gris-texto)'}">${r.cat==='Ingresos'?'+':''}${fmt(r.valor)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteReg('${r.id||''}',${data.indexOf(r)})">✕</button></td>
+    </tr>
+  `).join('');
+  document.getElementById('tableCount').textContent = `${filtered.length} registros | Total: ${fmt(filtered.reduce((s,d)=>s+d.valor,0))}`;
+}
+
+function exportCSV() {
+  const rows = [['Fecha','Detalle','Categoría','Cantidad','Valor']];
+  data.forEach(d => rows.push([d.fecha, d.detalle, d.cat, d.cant||'', d.valor]));
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'registros_platano.csv';
+  a.click();
+}
+
+// ══════════════════════════════════════════
+//  GANTT
+// ══════════════════════════════════════════
+function renderGantt() {
+  const container = document.getElementById('gantt-container');
+  const LABEL_W = 220, CELL_W = 56, cols = MONTHS.length;
+  const totalW = LABEL_W + cols * CELL_W;
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  const todayIdx = MONTHS.findIndex(m=>m.key===todayKey);
+
+  const phaseRows = GANTT_TASKS.filter(t=>t.type==='phase');
+  const taskRows  = GANTT_TASKS.filter(t=>t.type==='task');
+  const phaseRealCost = {};
+  phaseRows.forEach(p => {
+    phaseRealCost[p.id] = taskRows.filter(t=>t.parent===p.id).reduce((s,t)=>s+t.realCost,0);
+  });
+
+  let headerHtml = `<div class="gantt-header" style="display:grid;grid-template-columns:${LABEL_W}px repeat(${cols},${CELL_W}px)">
+    <div class="gantt-header-label">Actividad</div>
+    ${MONTHS.map(m=>`<div class="gantt-month-header" style="border-left:1px solid rgba(255,255,255,0.1)">${m.label}</div>`).join('')}
+  </div>`;
+
+  function monthIdx(key) { return MONTHS.findIndex(m=>m.key===key); }
+
+  function makeRow(task) {
+    const startI = monthIdx(task.start), endI = monthIdx(task.end);
+    if(startI<0||endI<0) return '';
+    const barStart = startI * CELL_W + 2, barWidth = (endI - startI + 1) * CELL_W - 4;
+    const barClass = task.progress===100 ? 'done' : task.critical ? 'critical' : task.type==='phase' ? 'phase-bar' : 'task-bar';
+    const cells = MONTHS.map((m,i)=>`<div class="gantt-cell" style="position:relative">${todayIdx===i?`<div class="gantt-today" style="left:${CELL_W/2}px"></div>`:''}</div>`).join('');
+    const progressW = Math.round(barWidth * task.progress/100);
+    return `<div class="gantt-row ${task.type==='phase'?'phase-row':'task-row'}" style="display:grid;grid-template-columns:${LABEL_W}px repeat(${cols},${CELL_W}px)">
+      <div class="gantt-label ${task.type==='phase'?'phase':''} ${task.type==='task'?'indent':''}" title="${task.notes||''}">${task.label}</div>
+      <div style="position:relative;grid-column:2/${cols+2};pointer-events:none">
+        ${cells}
+        <div class="gantt-bar ${barClass}" style="left:${barStart}px;width:${barWidth}px;" onclick="openTaskDetail(${task.id})" title="${task.label}: ${task.progress}%">
+          <div class="gantt-progress" style="width:${progressW}px"></div>
+          ${barWidth>60?task.progress+'%':''}
+        </div>
+        ${barWidth>80&&task.cost>0?`<div class="gantt-cost-badge" style="left:${barStart+barWidth-60}px">${(task.cost/1000000).toFixed(2)}M</div>`:''}
+      </div>
+    </div>`;
+  }
+
+  let ganttHtml = headerHtml;
+  GANTT_TASKS.forEach(t => { ganttHtml += makeRow(t); });
+  container.innerHTML = `<div style="min-width:${totalW}px">${ganttHtml}</div>`;
+
+  document.getElementById('phaseCostTable').innerHTML = phaseRows.map(p => {
+    const real = phaseRealCost[p.id];
+    const desv = real - p.cost;
+    return `<tr>
+      <td><strong>${p.label}</strong></td>
+      <td style="font-family:'DM Mono',monospace">${fmt(p.cost)}</td>
+      <td style="font-family:'DM Mono',monospace">${fmt(real)}</td>
+      <td style="font-family:'DM Mono',monospace;color:${desv<=0?'var(--verde-vivo)':'var(--rojo)'}">${desv>0?'+':''}${fmt(desv)}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="prog-bar" style="flex:1"><div class="prog-fill" style="width:${p.progress}%;background:var(--verde-vivo)"></div></div>
+        <span style="font-size:12px;font-weight:600;min-width:36px">${p.progress}%</span>
+      </div></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('ganttSummary').textContent = `Presupuesto total: ${fmt(GANTT_TASKS.filter(t=>t.type==='phase').reduce((s,t)=>s+t.cost,0))}`;
+}
+
+function openTaskDetail(id) {
+  const task = GANTT_TASKS.find(t=>t.id===id);
+  if(!task) return;
+  document.getElementById('modalTitle').textContent = task.label;
+  document.getElementById('modalContent').innerHTML = `
+    <div class="mini-metric"><span class="mini-metric-label">Inicio</span><span class="mini-metric-val">${task.start}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Fin</span><span class="mini-metric-val">${task.end}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Presupuesto</span><span class="mini-metric-val">${fmt(task.cost)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Notas</span><span class="mini-metric-val" style="font-size:12px">${task.notes||'—'}</span></div>
+    <div style="margin-top:16px">
+      <label>Avance (%) — editar</label>
+      <input type="range" min="0" max="100" value="${task.progress}" id="progressSlider" oninput="document.getElementById('progressVal').textContent=this.value+'%'" style="width:100%;margin-top:8px">
+      <p id="progressVal" style="text-align:right;font-family:'DM Mono',monospace;font-weight:600">${task.progress}%</p>
+    </div>
+    <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="saveProgress(${id})">💾 Guardar Avance${cloudMode?' en la nube':' local'}</button>
+  `;
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function openAddTask() {
+  document.getElementById('modalTitle').textContent = 'Nueva Tarea';
+  document.getElementById('modalContent').innerHTML = `
+    <div class="form-group"><label>Nombre</label><input id="nt_label" placeholder="Nombre de la tarea"></div>
+    <div class="form-row" style="margin-top:12px">
+      <div class="form-group"><label>Inicio</label><select id="nt_start">${MONTHS.map(m=>`<option value="${m.key}">${m.label}</option>`).join('')}</select></div>
+      <div class="form-group"><label>Fin</label><select id="nt_end">${MONTHS.map(m=>`<option value="${m.key}">${m.label}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Presupuesto</label><input id="nt_cost" type="number" placeholder="0"></div>
+      <div class="form-group"><label>Tipo</label><select id="nt_type"><option value="task">Tarea</option><option value="phase">Fase principal</option></select></div>
+    </div>
+    <div class="form-group" style="margin-top:8px"><label>Notas</label><textarea id="nt_notes" rows="2"></textarea></div>
+    <button class="btn btn-primary" style="margin-top:12px;width:100%" onclick="addGanttTask()">➕ Agregar</button>
+  `;
+  document.getElementById('taskModal').classList.add('open');
+}
+
+function addGanttTask() {
+  const label = document.getElementById('nt_label').value;
+  const start = document.getElementById('nt_start').value;
+  const end   = document.getElementById('nt_end').value;
+  const cost  = parseFloat(document.getElementById('nt_cost').value)||0;
+  const type  = document.getElementById('nt_type').value;
+  const notes = document.getElementById('nt_notes').value;
+  if(!label) return;
+  const newId = Math.max(...GANTT_TASKS.map(t=>t.id))+1;
+  GANTT_TASKS.push({id:newId,label,type,start,end,progress:0,cost,realCost:0,critical:false,notes});
+  closeModal();
+  renderGantt();
+}
+
+function closeModal() {
+  document.getElementById('taskModal').classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+//  BUENAS PRÁCTICAS
+// ══════════════════════════════════════════
+function renderPracticas() {
+  document.getElementById('practicGrid').innerHTML = BUENAS_PRACTICAS.map(p => `
+    <div class="practic-card">
+      <div class="practic-header ${p.headerClass}">${p.titulo}</div>
+      <div class="practic-body">
+        ${p.items.map(i=>`<div class="practic-item"><span class="practic-icon">${i.icon}</span><span>${i.text}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════
+//  REPORTES
+// ══════════════════════════════════════════
+let selectedRepMonth = '2026-01';
+
+function renderReportes() {
+  renderMonthPills();
+  renderMonthReport(selectedRepMonth);
+}
+
+function renderMonthPills() {
+  const avail = [...new Set(data.map(d=>monthOf(d.fecha)))].sort();
+  document.getElementById('reportMonthPills').innerHTML = avail.map(m => {
+    const ml = MONTHS.find(mo=>mo.key===m)?.label || m;
+    return `<div class="month-pill ${m===selectedRepMonth?'active':''}" onclick="selectRepMonth('${m}')">${ml}</div>`;
+  }).join('');
+}
+
+function selectRepMonth(m) {
+  selectedRepMonth = m;
+  renderMonthPills();
+  renderMonthReport(m);
+}
+
+function renderMonthReport(m) {
+  const txs = data.filter(d=>monthOf(d.fecha)===m);
+  const gastos = txs.filter(d=>d.cat!=='Ingresos');
+  const ingresos = txs.filter(d=>d.cat==='Ingresos');
+  const totalG = gastos.reduce((s,d)=>s+d.valor,0);
+  const totalI = ingresos.reduce((s,d)=>s+d.valor,0);
+  const bycat = {};
+  gastos.forEach(d=>{ bycat[d.cat]=(bycat[d.cat]||0)+d.valor; });
+
+  document.getElementById('repMesContent').innerHTML = `
+    <div class="mini-metric"><span class="mini-metric-label">Total Gastos</span><span class="mini-metric-val" style="color:var(--rojo)">${fmt(totalG)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Total Ingresos</span><span class="mini-metric-val" style="color:var(--verde-vivo)">${fmt(totalI)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Balance del Mes</span><span class="mini-metric-val" style="color:${totalI-totalG>=0?'var(--verde-vivo)':'var(--rojo)'}">${fmt(totalI-totalG)}</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Transacciones</span><span class="mini-metric-val">${txs.length}</span></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #f1f5f9">
+    ${Object.entries(bycat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`
+      <div class="mini-metric"><span class="mini-metric-label">${c}</span><span class="mini-metric-val">${fmt(v)} <span style="font-size:10px;color:#94a3b8">${totalG>0?(v/totalG*100).toFixed(1)+'%':''}</span></span></div>
+      <div class="prog-bar" style="margin-bottom:6px"><div class="prog-fill" style="width:${totalG>0?v/totalG*100:0}%;background:var(--verde-vivo)"></div></div>
+    `).join('')}
+  `;
+
+  const cats2 = Object.keys(bycat), total2 = Object.values(bycat).reduce((s,v)=>s+v,0)||1;
+  let angle = -Math.PI/2;
+  const paths2 = cats2.map((cat,i)=>{
+    const pct=bycat[cat]/total2, end=angle+pct*2*Math.PI;
+    const x1=80+70*Math.cos(angle),y1=80+70*Math.sin(angle);
+    const x2=80+70*Math.cos(end),y2=80+70*Math.sin(end);
+    const ix1=80+42*Math.cos(angle),iy1=80+42*Math.sin(angle);
+    const ix2=80+42*Math.cos(end),iy2=80+42*Math.sin(end);
+    const large=pct>0.5?1:0;
+    const p=`<path d="M${x1},${y1} A70,70 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A42,42 0 ${large},0 ${ix1},${iy1} Z" fill="${COLORS[i%COLORS.length]}"><title>${cat}</title></path>`;
+    angle=end; return p;
+  }).join('');
+  document.getElementById('repMesDonut').innerHTML = `<div style="display:flex;justify-content:center;margin-top:12px"><svg width="160" height="160" viewBox="0 0 160 160">${paths2}<text x="80" y="76" text-anchor="middle" font-size="10" fill="#94a3b8" font-family="Inter">GASTOS</text><text x="80" y="90" text-anchor="middle" font-size="11" fill="#1a3a2a" font-weight="600" font-family="DM Mono">${(totalG/1000000).toFixed(2)}M</text></svg></div>`;
+
+  document.getElementById('repMesTx').innerHTML = txs.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(r=>`
+    <tr><td>${fmtDate(r.fecha)}</td><td>${r.detalle}</td><td>${catBadge(r.cat)}</td>
+    <td style="font-family:'DM Mono',monospace;color:${r.cat==='Ingresos'?'var(--verde-vivo)':'var(--gris-texto)'}">${r.cat==='Ingresos'?'+':''}${fmt(r.valor)}</td></tr>
+  `).join('');
+}
+
+function renderCatReport() {
+  const gastos = data.filter(d=>d.cat!=='Ingresos');
+  const total = gastos.reduce((s,d)=>s+d.valor,0)||1;
+  const bycat = {};
+  gastos.forEach(d=>{ if(!bycat[d.cat]) bycat[d.cat]={total:0,count:0}; bycat[d.cat].total+=d.valor; bycat[d.cat].count++; });
+  document.getElementById('repCatTable').innerHTML = Object.entries(bycat).sort((a,b)=>b[1].total-a[1].total).map(([cat,v])=>`
+    <tr>
+      <td>${catBadge(cat)}</td>
+      <td style="font-family:'DM Mono',monospace;font-weight:600">${fmt(v.total)}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+        <div class="prog-bar" style="width:120px"><div class="prog-fill" style="width:${v.total/total*100}%;background:var(--verde-vivo)"></div></div>
+        <span style="font-size:12px">${(v.total/total*100).toFixed(1)}%</span>
+      </div></td>
+      <td>${v.count}</td>
+      <td style="font-family:'DM Mono',monospace">${fmt(v.total/v.count)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderRentab() {
+  const totalGasto = data.filter(d=>d.cat!=='Ingresos').reduce((s,d)=>s+d.valor,0);
+  const totalIngreso = data.filter(d=>d.cat==='Ingresos').reduce((s,d)=>s+d.valor,0);
+  const balance = totalIngreso - totalGasto;
+  const roi = totalGasto>0?(totalIngreso/totalGasto-1)*100:0;
+  document.getElementById('rentabKpis').innerHTML = `
+    <div class="kpi kpi-cost"><div class="kpi-label">Inversión Total</div><div class="kpi-value">${fmt(totalGasto)}</div><div class="kpi-sub">Costo acumulado del ciclo</div></div>
+    <div class="kpi kpi-income"><div class="kpi-label">Ingresos Totales</div><div class="kpi-value">${fmt(totalIngreso)}</div><div class="kpi-sub">Ventas realizadas</div></div>
+    <div class="kpi kpi-balance"><div class="kpi-label">Utilidad / Pérdida</div><div class="kpi-value" style="color:${balance>=0?'var(--verde-vivo)':'var(--rojo)'}">${fmt(balance)}</div><div class="kpi-sub">${balance>=0?'Positivo ✅':'Déficit (normal en inicio)'}</div></div>
+    <div class="kpi kpi-warn"><div class="kpi-label">ROI parcial</div><div class="kpi-value">${roi.toFixed(1)}%</div><div class="kpi-sub">Retorno sobre inversión</div></div>
+  `;
+  document.getElementById('rentabDetail').innerHTML = `
+    <div class="alert alert-info"><span>📊</span><span>Inversión total: ${fmt(totalGasto)}. Ingresos a la fecha: ${fmt(totalIngreso)}. El punto de equilibrio se estima para Q2 2026 con cosechas semanales continuas.</span></div>
+    <div class="mini-metric"><span class="mini-metric-label">Ventas registradas</span><span class="mini-metric-val">${data.filter(d=>d.cat==='Ingresos').length}</span></div>
+    <div class="alert alert-warn" style="margin-top:16px"><span>⚠️</span><span>En el segundo ciclo los costos de establecimiento caen ~70%. La rentabilidad mejora significativamente.</span></div>
+  `;
+}
+
+// ══════════════════════════════════════════
+//  RESET / CONFIRM
+// ══════════════════════════════════════════
+function confirmReset() {
+  document.getElementById('resetModal').classList.add('open');
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+function showToast(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:var(--verde-oscuro);color:#fff;padding:14px 24px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 8px 32px rgba(0,0,0,0.3);animation:slideUp 0.3s ease;`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+}
+
+// ══════════════════════════════════════════
+//  HEADER DATE
+// ══════════════════════════════════════════
+function initHeader() {
+  const now = new Date();
+  document.getElementById('headerDate').textContent =
+    now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+}
+
+// ══════════════════════════════════════════
+//  INIT APP (called after connection established)
+// ══════════════════════════════════════════
+function initApp() {
+  initHeader();
+  document.getElementById('authBar').style.display = cloudMode ? 'flex' : 'none';
+  refreshAll();
+  function fixGrid() {
+    const w = window.innerWidth;
+    const g1 = document.querySelector('.dash-grid');
+    const g2 = document.querySelector('.dash-grid2');
+    if(g1) g1.style.gridTemplateColumns = w<800?'1fr':'1fr 1fr';
+    if(g2) g2.style.gridTemplateColumns = w<800?'1fr':'1fr 1fr';
+  }
+  window.addEventListener('resize', fixGrid);
+  fixGrid();
+}
+
+initHeader(); // show date even before connection
+</script>
+</body>
+</html>
