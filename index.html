@@ -2135,39 +2135,40 @@ async function connectFirebase(silent = false) {
   setConnBadge('connecting','Conectando…');
 
   try {
-    // Prevent duplicate init
+    // Init Firebase (prevent duplicate)
     if(!firebase.apps.length) {
-      firebase.initializeApp({ apiKey, authDomain, projectId, storageBucket: projectId+'.appspot.com' });
+      firebase.initializeApp({
+        apiKey, authDomain, projectId,
+        storageBucket: projectId + '.appspot.com'
+      });
     }
-    db   = firebase.firestore();
-    auth = firebase.auth();
+
+    db = firebase.firestore();
 
     // Save config for auto-reconnect
     localStorage.setItem(FB_CONFIG_KEY, JSON.stringify({ apiKey, authDomain, projectId }));
 
     cloudMode = true;
     document.getElementById('setupScreen').style.display = 'none';
-
-    // Auth state listener
-    auth.onAuthStateChanged(user => {
-      currentUser = user;
-      updateAuthBar(user);
-      if(user) {
-        subscribeToData();
-      } else {
-        // Anonymous sign-in as fallback so Firestore rules can allow read
-        auth.signInAnonymously().catch(() => {});
-        subscribeToData();
-      }
-    });
-
-    setConnBadge('connected','☁️ Nube activa');
+    setConnBadge('connected', '☁️ Nube activa');
     initApp();
 
+    // Connect directly to Firestore (modo prueba = no auth needed)
+    subscribeToData();
+
+    // Try auth silently in background (optional)
+    try {
+      auth = firebase.auth();
+      auth.onAuthStateChanged(user => {
+        currentUser = user;
+        updateAuthBar(user);
+      });
+    } catch(e) {}
+
   } catch(err) {
-    setConnBadge('disconnected','Sin conexión');
-    if(!silent) showToast('❌ Error al conectar: ' + err.message);
-    else useLocalMode(); // fallback if auto-reconnect fails
+    setConnBadge('disconnected', 'Sin conexión');
+    if(!silent) showToast('❌ Error: ' + err.message);
+    else useLocalMode();
   }
 }
 
@@ -2192,20 +2193,24 @@ function subscribeToData() {
   if(!db) return;
 
   setConnBadge('connecting','Sincronizando…');
+
+  // Use simple collection read (no orderBy to avoid index requirement)
   unsubscribeSnapshot = db.collection('registros')
-    .orderBy('fecha', 'desc')
     .onSnapshot(snapshot => {
       if(snapshot.empty) {
         // First time: seed with historical data
         seedHistoricalData();
       } else {
         data = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Sort locally
+        data.sort((a,b) => b.fecha.localeCompare(a.fecha));
         setConnBadge('connected','☁️ Sincronizado');
         refreshAll();
       }
     }, err => {
       setConnBadge('disconnected','Sin conexión');
-      console.error('Firestore error:', err);
+      showToast('⚠️ Error Firestore: ' + err.message);
+      console.error('Firestore error:', err.code, err.message);
     });
 
   // Also subscribe to gantt tasks
