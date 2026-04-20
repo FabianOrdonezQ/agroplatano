@@ -384,28 +384,47 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
 </head>
 <body>
 
-<!-- ══ SETUP SCREEN ══ -->
+<!-- ══ LOGIN SCREEN ══ -->
 <div id="setupScreen">
-  <div class="setup-card">
+  <div class="setup-card" style="max-width:420px">
     <div class="setup-logo">
       <div class="setup-logo-icon">🌱</div>
       <h1>AgroBase</h1>
-      <p>Gestión integral de proyectos agrícolas en la nube</p>
+      <p>Gestión integral de proyectos agrícolas</p>
     </div>
-    <div class="setup-hint">🔒 Conecta tu Firebase para sincronizar datos entre todos los usuarios y dispositivos.</div>
-    <div class="setup-field"><label>API Key</label><input id="fbKey" placeholder="AIzaSy..."></div>
-    <div class="setup-field"><label>Auth Domain</label><input id="fbDomain" placeholder="proyecto.firebaseapp.com"></div>
-    <div class="setup-field"><label>Project ID</label><input id="fbProject" placeholder="proyecto-12345"></div>
-    <button class="btn-connect" onclick="connectFirebase()">☁️ Conectar a la nube</button>
-    <button class="btn-local" onclick="useLocal()">💻 Modo local (sin nube)</button>
-    <details style="margin-top:16px;font-size:12px;color:#64748b;cursor:pointer">
-      <summary style="font-weight:600;color:var(--verde);margin-bottom:6px">📖 ¿Cómo obtengo las credenciales?</summary>
-      <ol style="padding-left:16px;line-height:2">
-        <li>Ve a <a href="https://console.firebase.google.com" target="_blank">console.firebase.google.com</a></li>
-        <li>Tu proyecto: <strong>APPCULTIVO</strong> (ya creado)</li>
-        <li>⚙️ Configuración → Tus apps → SDK → copia los valores</li>
-      </ol>
-    </details>
+
+    <!-- Estado: conectando -->
+    <div id="loginConnecting" style="text-align:center;padding:20px 0">
+      <div style="font-size:32px;margin-bottom:12px">☁️</div>
+      <p style="font-size:13px;color:var(--gris-claro)">Conectando con la nube…</p>
+    </div>
+
+    <!-- Estado: listo para login -->
+    <div id="loginReady" style="display:none">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12.5px;color:#166534;line-height:1.6">
+        🔒 Acceso restringido. Solo usuarios autorizados por el administrador pueden ingresar.
+      </div>
+      <button class="btn-connect" onclick="loginGoogle()" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#374151;border:1.5px solid #e2e8f0;font-size:14px">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px">
+        Entrar con Google
+      </button>
+      <p style="text-align:center;font-size:11px;color:var(--gris-claro);margin-top:14px">¿No tienes Gmail? <a href="https://accounts.google.com/signup" target="_blank" style="color:var(--verde)">Crea una cuenta gratuita</a></p>
+    </div>
+
+    <!-- Estado: acceso denegado -->
+    <div id="loginDenied" style="display:none;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">🚫</div>
+      <p style="font-weight:700;color:var(--rojo);margin-bottom:8px">Acceso no autorizado</p>
+      <p style="font-size:13px;color:var(--gris-claro);margin-bottom:20px">Tu correo <strong id="deniedEmail"></strong> no tiene acceso a AgroBase.<br>Contacta al administrador para solicitar acceso.</p>
+      <button class="btn-local" onclick="logoutAndReset()">← Usar otro correo</button>
+    </div>
+
+    <!-- Estado: error -->
+    <div id="loginError" style="display:none;text-align:center">
+      <div style="font-size:48px;margin-bottom:12px">⚠️</div>
+      <p style="font-size:13px;color:var(--gris-claro);margin-bottom:16px" id="loginErrorMsg">Error de conexión</p>
+      <button class="btn-connect" onclick="autoConnect()">Reintentar</button>
+    </div>
   </div>
 </div>
 
@@ -425,6 +444,17 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
       <span class="topbar-date" id="topDate"></span>
       <div class="conn-badge wait" id="connBadge"><span class="conn-dot"></span><span id="connText">Conectando</span></div>
       <button id="projBadge" onclick="irASelector()" style="display:none">🌱 Seleccionar proyecto</button>
+      <div id="userMenu" style="display:none;align-items:center;gap:8px;background:rgba(255,255,255,0.1);border-radius:8px;padding:5px 10px;cursor:pointer" onclick="toggleUserDropdown()">
+        <div id="userAvatar" style="width:28px;height:28px;border-radius:50%;background:var(--amarillo);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--verde);flex-shrink:0">?</div>
+        <span id="userName" style="font-size:12px;color:rgba(255,255,255,0.85);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+        <span style="color:rgba(255,255,255,0.5);font-size:10px">▾</span>
+      </div>
+      <!-- User dropdown -->
+      <div id="userDropdown" style="display:none;position:absolute;top:56px;right:16px;background:#fff;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.2);padding:8px;min-width:200px;z-index:200">
+        <div id="dropUserEmail" style="padding:8px 12px;font-size:11px;color:var(--gris-claro);border-bottom:1px solid #f1f5f9;margin-bottom:4px"></div>
+        <div id="dropUserRol" style="padding:6px 12px;font-size:11px;font-weight:700;color:var(--verde)"></div>
+        <button onclick="logoutAndReset()" style="width:100%;text-align:left;padding:8px 12px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--rojo);border-top:1px solid #f1f5f9;margin-top:4px">🚪 Cerrar sesión</button>
+      </div>
     </div>
   </div>
 
@@ -436,7 +466,8 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
         <button class="btn btn-primary" onclick="openNewProyecto()">➕ Nuevo proyecto</button>
       </div>
 
-      <!-- Filtros consolidado -->
+      <!-- Filtros consolidado (solo admin) -->
+      <div id="consolidadoSection">
       <div style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:var(--sombra);border:1px solid rgba(30,107,60,0.07)">
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <span style="font-size:12px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap">Consolidar por:</span>
@@ -451,8 +482,19 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
       <!-- Resumen consolidado -->
       <div class="consolidado-grid" id="consolidadoGrid"></div>
 
+      </div><!-- end consolidadoSection -->
+
       <!-- Grid de proyectos -->
       <div class="proyectos-grid" id="proyectosGrid"></div>
+
+      <!-- Gestión de usuarios (solo admin) -->
+      <div id="gestionUsuariosSection" style="display:none;margin-top:28px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <h3 style="font-family:'Fraunces',serif;font-size:18px;color:var(--verde)">👥 Usuarios Autorizados</h3>
+          <button class="btn btn-outline btn-sm" onclick="openAddUser()">➕ Autorizar usuario</button>
+        </div>
+        <div id="usuariosList"></div>
+      </div>
     </div>
   </div>
 
@@ -1076,15 +1118,164 @@ function catBadge(cat) {
 // ══════════════════════════════════════════
 //  FIREBASE INIT
 // ══════════════════════════════════════════
+// ══ CREDENCIALES PRE-CONFIGURADAS ══
+// La app conecta automáticamente sin pedir datos al usuario
+const FIREBASE_CFG = {
+  apiKey:     'AIzaSyDEZqglLH9_DJ8ku_A6KiCAOh5lpFY_VJ8',
+  authDomain: 'appcultivo-171fc.firebaseapp.com',
+  projectId:  'appcultivo-171fc'
+};
+
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('topDate').textContent = new Date().toLocaleDateString('es-CO',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
   // Set today on forms
   const today = new Date().toISOString().split('T')[0];
   ['gFecha','rFecha','llFecha','docFecha'].forEach(id => { const el=document.getElementById(id); if(el) el.value=today; });
-  // Auto-reconnect
-  const cfg = (() => { try { return JSON.parse(localStorage.getItem(FB_CFG_KEY)||'null'); } catch(e){ return null; } })();
-  if(cfg) { document.getElementById('fbKey').value=cfg.apiKey||''; document.getElementById('fbDomain').value=cfg.authDomain||''; document.getElementById('fbProject').value=cfg.projectId||''; connectFirebase(true); }
+  // Auto-connect with pre-configured credentials — no setup screen needed
+  autoConnect();
 });
+
+// ══ ESTADO DEL USUARIO ACTUAL ══
+let currentUser = null;      // objeto Google user
+let userProfile = null;      // {rol, proyectos[], email, nombre}
+let ADMIN_EMAIL = null;      // se carga desde Firestore
+
+async function autoConnect() {
+  setLoginState('connecting');
+  setConn('wait','Conectando…');
+  try {
+    if(!firebase.apps.length) {
+      firebase.initializeApp({
+        ...FIREBASE_CFG,
+        storageBucket: FIREBASE_CFG.projectId + '.appspot.com'
+      });
+    }
+    db = firebase.firestore();
+    auth = firebase.auth();
+    try { storage = firebase.storage(); } catch(e){}
+    cloudMode = true;
+    setConn('ok','☁️ Conectado');
+
+    // Listen for auth state
+    auth.onAuthStateChanged(async user => {
+      if(user) {
+        await onUserLoggedIn(user);
+      } else {
+        setLoginState('ready');
+      }
+    });
+
+  } catch(err) {
+    setLoginState('error', err.message);
+    setConn('err','Sin conexión');
+  }
+}
+
+// ── Login con Google
+async function loginGoogle() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+    // onAuthStateChanged handles the rest
+  } catch(e) {
+    if(e.code !== 'auth/popup-closed-by-user') {
+      toast('❌ Error al iniciar sesión: ' + e.message);
+    }
+  }
+}
+
+// ── Cuando el usuario está autenticado
+async function onUserLoggedIn(user) {
+  currentUser = user;
+  setConn('ok','☁️ Conectado');
+
+  // Load user profile from Firestore
+  try {
+    // Load admin config
+    const cfgDoc = await db.collection('config').doc('admin').get();
+    if(cfgDoc.exists) {
+      ADMIN_EMAIL = cfgDoc.data().email;
+    } else {
+      // First time: set current user as admin
+      await db.collection('config').doc('admin').set({
+        email: user.email,
+        nombre: user.displayName || user.email
+      });
+      ADMIN_EMAIL = user.email;
+    }
+
+    const isAdmin = user.email === ADMIN_EMAIL;
+
+    if(isAdmin) {
+      userProfile = { rol: 'admin', proyectos: null, email: user.email, nombre: user.displayName || user.email };
+    } else {
+      // Check if user is authorized collaborator
+      const userDoc = await db.collection('usuarios').doc(user.email).get();
+      if(!userDoc.exists) {
+        // Not authorized
+        setLoginState('denied', user.email);
+        await auth.signOut();
+        return;
+      }
+      const ud = userDoc.data();
+      userProfile = { rol: ud.rol || 'colaborador', proyectos: ud.proyectos || [], email: user.email, nombre: user.displayName || user.email };
+    }
+
+    // Show app
+    document.getElementById('setupScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    updateUserUI();
+    await loadProyectos();
+    irASelector();
+
+  } catch(err) {
+    setLoginState('error', 'Error verificando acceso: ' + err.message);
+    await auth.signOut();
+  }
+}
+
+// ── Update user UI in topbar
+function updateUserUI() {
+  if(!userProfile) return;
+  const menu = document.getElementById('userMenu');
+  menu.style.display = 'flex';
+  const initials = userProfile.nombre.split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+  document.getElementById('userAvatar').textContent = initials;
+  document.getElementById('userName').textContent = userProfile.nombre.split(' ')[0];
+  document.getElementById('dropUserEmail').textContent = userProfile.email;
+  document.getElementById('dropUserRol').textContent = userProfile.rol === 'admin' ? '👑 Administrador' : '👤 Colaborador';
+}
+
+function toggleUserDropdown() {
+  const dd = document.getElementById('userDropdown');
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', e => {
+  if(!e.target.closest('#userMenu') && !e.target.closest('#userDropdown')) {
+    const dd = document.getElementById('userDropdown');
+    if(dd) dd.style.display = 'none';
+  }
+});
+
+// ── Logout
+async function logoutAndReset() {
+  try { await auth.signOut(); } catch(e){}
+  currentUser = null; userProfile = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('userMenu').style.display = 'none';
+  document.getElementById('setupScreen').style.display = 'flex';
+  setLoginState('ready');
+}
+
+// ── Login state machine
+function setLoginState(state, data='') {
+  document.getElementById('loginConnecting').style.display = state==='connecting' ? 'block' : 'none';
+  document.getElementById('loginReady').style.display = state==='ready' ? 'block' : 'none';
+  document.getElementById('loginDenied').style.display = state==='denied' ? 'block' : 'none';
+  document.getElementById('loginError').style.display = state==='error' ? 'block' : 'none';
+  if(state==='denied') document.getElementById('deniedEmail').textContent = data;
+  if(state==='error') document.getElementById('loginErrorMsg').textContent = data;
+}
 
 async function connectFirebase(silent=false) {
   const apiKey=document.getElementById('fbKey').value.trim();
@@ -1236,7 +1427,15 @@ function irASelector() {
   document.getElementById('proyectoSelector').style.display='block';
   document.getElementById('mainApp').style.display='none';
   document.getElementById('projBadge').style.display='none';
+  document.getElementById('userDropdown').style.display='none';
   renderSelector();
+}
+
+// Filter projects based on user role
+function getProyectosParaUsuario() {
+  if(!userProfile || userProfile.rol === 'admin') return proyectos;
+  // Colaborador: only authorized projects
+  return proyectos.filter(p => userProfile.proyectos && userProfile.proyectos.includes(p.id));
 }
 
 // ── FILTRO CONSOLIDADO STATE
@@ -1341,13 +1540,20 @@ async function recargarStatsProyecto(id) {
 }
 
 function renderSelector() {
-  // Render filter buttons
-  renderFiltrosBtns();
-  // Render consolidado with current filter
-  renderConsolidado();
-  // Proyectos grid
+  const esAdmin = !userProfile || userProfile.rol === 'admin';
+  // Show/hide consolidated section based on role
+  const consolidadoSection = document.getElementById('consolidadoSection');
+  if(consolidadoSection) consolidadoSection.style.display = esAdmin ? '' : 'none';
+  // Render filter buttons (admin only)
+  if(esAdmin) renderFiltrosBtns();
+  // Render consolidado with current filter (admin only)
+  if(esAdmin) renderConsolidado();
+  if(esAdmin) loadUsuarios();
+  // Proyectos grid — filtered by user role
+  const proyParaUsuario = getProyectosParaUsuario();
+  const esAdmin = !userProfile || userProfile.rol === 'admin';
   document.getElementById('proyectosGrid').innerHTML =
-    proyectos.map(p=>`
+    proyParaUsuario.map(p=>`
       <div class="proy-card ${p.estado}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
           <div class="proy-card-code">${p.codigo}</div>
@@ -1363,7 +1569,10 @@ function renderSelector() {
         </div>
       </div>
     `).join('') +
-    `<div class="new-proy-card" onclick="openNewProyecto()"><div class="plus">＋</div><span>Nuevo proyecto</span></div>`;
+    (esAdmin ? `<div class="new-proy-card" onclick="openNewProyecto()"><div class="plus">＋</div><span>Nuevo proyecto</span></div>` : '');
+  // Hide "Nuevo proyecto" button in header for colaboradores
+  const newProjBtn = document.querySelector('.selector-header .btn-primary');
+  if(newProjBtn) newProjBtn.style.display = esAdmin ? '' : 'none';
 }
 
 async function abrirProyecto(id) {
@@ -2193,6 +2402,145 @@ window.addEventListener('resize',()=>{
   document.querySelectorAll('.grid-3').forEach(el=>el.style.gridTemplateColumns=w<900?'1fr':'1fr 1fr 1fr');
 });
 window.dispatchEvent(new Event('resize'));
+
+// ══════════════════════════════════════════
+//  GESTIÓN DE USUARIOS (solo admin)
+// ══════════════════════════════════════════
+async function loadUsuarios() {
+  if(!db || !userProfile || userProfile.rol !== 'admin') return;
+  document.getElementById('gestionUsuariosSection').style.display = 'block';
+  try {
+    const snap = await db.collection('usuarios').get();
+    const usuarios = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    renderUsuariosList(usuarios);
+  } catch(e) { console.error('Error loading users:', e); }
+}
+
+function renderUsuariosList(usuarios) {
+  const el = document.getElementById('usuariosList');
+  if(!usuarios.length) {
+    el.innerHTML = '<div class="alert alert-info">ℹ️ No hay colaboradores autorizados aún. Usa el botón "Autorizar usuario" para agregar.</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="background:#fff;border-radius:var(--r);box-shadow:var(--sombra);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:var(--verde)">
+          <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.85)">Correo</th>
+          <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.85)">Nombre</th>
+          <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.85)">Proyectos autorizados</th>
+          <th style="padding:10px 14px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:rgba(255,255,255,0.85)">Acciones</th>
+        </tr></thead>
+        <tbody>
+          ${usuarios.map(u => `
+            <tr style="border-bottom:1px solid #f1f5f9">
+              <td style="padding:10px 14px;font-size:12px">${u.id}</td>
+              <td style="padding:10px 14px;font-size:12px">${u.nombre||'—'}</td>
+              <td style="padding:10px 14px;font-size:12px">
+                ${(u.proyectos||[]).map(p=>`<span class="badge b-siem" style="margin-right:4px">${p}</span>`).join('') || '—'}
+              </td>
+              <td style="padding:10px 14px">
+                <button class="btn btn-outline btn-sm" onclick="editarUsuario('${u.id}')" style="margin-right:6px">✏️ Editar</button>
+                <button class="btn btn-danger btn-sm" onclick="eliminarUsuario('${u.id}')">✕</button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function openAddUser() {
+  document.getElementById('modalTitle').textContent = 'Autorizar nuevo usuario';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="alert alert-info" style="margin-bottom:16px">ℹ️ El usuario debe tener una cuenta de Google (Gmail). Si no tiene, puede crear una gratis en <a href="https://accounts.google.com/signup" target="_blank">accounts.google.com</a></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Correo Gmail del colaborador</label>
+      <input id="nu_email" type="email" placeholder="juan@gmail.com">
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Nombre</label>
+      <input id="nu_nombre" placeholder="Juan Castro">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Proyectos autorizados (selecciona uno o varios)</label>
+      <div id="nu_proyectos" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        ${proyectos.map(p=>`
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">
+            <input type="checkbox" value="${p.id}" style="width:auto;padding:0;border:none"> ${p.codigo}
+          </label>
+        `).join('')}
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" onclick="guardarUsuario()">✅ Autorizar acceso</button>
+  `;
+  openModal();
+}
+
+async function guardarUsuario() {
+  const email = document.getElementById('nu_email').value.trim().toLowerCase();
+  const nombre = document.getElementById('nu_nombre').value.trim();
+  const checkboxes = document.querySelectorAll('#nu_proyectos input[type=checkbox]:checked');
+  const proyectosAuth = Array.from(checkboxes).map(c=>c.value);
+  if(!email || !nombre) { toast('⚠️ Completa correo y nombre'); return; }
+  if(!proyectosAuth.length) { toast('⚠️ Selecciona al menos un proyecto'); return; }
+  try {
+    await db.collection('usuarios').doc(email).set({
+      nombre, rol: 'colaborador', proyectos: proyectosAuth,
+      autorizadoEn: new Date().toISOString(), autorizadoPor: userProfile.email
+    });
+    closeModal();
+    toast('✅ '+nombre+' autorizado para: '+proyectosAuth.join(', '));
+    loadUsuarios();
+  } catch(e) { toast('❌ Error: '+e.message); }
+}
+
+async function editarUsuario(email) {
+  const doc = await db.collection('usuarios').doc(email).get();
+  if(!doc.exists) return;
+  const u = doc.data();
+  document.getElementById('modalTitle').textContent = 'Editar usuario — '+email;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group" style="margin-bottom:12px">
+      <label>Nombre</label>
+      <input id="eu_nombre" value="${u.nombre||''}">
+    </div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label>Proyectos autorizados</label>
+      <div id="eu_proyectos" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">
+        ${proyectos.map(p=>`
+          <label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">
+            <input type="checkbox" value="${p.id}" ${(u.proyectos||[]).includes(p.id)?'checked':''} style="width:auto;padding:0;border:none"> ${p.codigo}
+          </label>
+        `).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" onclick="actualizarUsuario('${email}')">💾 Guardar</button>
+      <button class="btn btn-danger" style="flex:1;justify-content:center" onclick="eliminarUsuario('${email}')">🗑️ Revocar acceso</button>
+    </div>
+  `;
+  openModal();
+}
+
+async function actualizarUsuario(email) {
+  const nombre = document.getElementById('eu_nombre').value.trim();
+  const checkboxes = document.querySelectorAll('#eu_proyectos input[type=checkbox]:checked');
+  const proyectosAuth = Array.from(checkboxes).map(c=>c.value);
+  try {
+    await db.collection('usuarios').doc(email).update({ nombre, proyectos: proyectosAuth });
+    closeModal(); toast('✅ Usuario actualizado'); loadUsuarios();
+  } catch(e) { toast('❌ Error: '+e.message); }
+}
+
+async function eliminarUsuario(email) {
+  if(!confirm('¿Revocar acceso de '+email+'?')) return;
+  try {
+    await db.collection('usuarios').doc(email).delete();
+    closeModal(); toast('✅ Acceso revocado'); loadUsuarios();
+  } catch(e) { toast('❌ Error: '+e.message); }
+}
 </script>
 </body>
 </html>
