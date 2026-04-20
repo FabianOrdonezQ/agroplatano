@@ -1156,6 +1156,9 @@ async function autoConnect() {
     cloudMode = true;
     setConn('ok','☁️ Conectado');
 
+    // Check if returning from Google redirect
+    await checkRedirectResult();
+
     // Listen for auth state
     auth.onAuthStateChanged(async user => {
       if(user) {
@@ -1164,6 +1167,13 @@ async function autoConnect() {
         setLoginState('ready');
       }
     });
+
+    // Safety timeout: if still connecting after 4s, show login button anyway
+    setTimeout(() => {
+      if(document.getElementById('loginConnecting').style.display !== 'none') {
+        setLoginState('ready');
+      }
+    }, 4000);
 
   } catch(err) {
     setLoginState('error', err.message);
@@ -1175,11 +1185,38 @@ async function autoConnect() {
 async function loginGoogle() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
-    await auth.signInWithPopup(provider);
-    // onAuthStateChanged handles the rest
+    provider.setCustomParameters({ prompt: 'select_account' });
+    // Try popup first (desktop), fallback to redirect (mobile)
+    try {
+      await auth.signInWithPopup(provider);
+    } catch(popupErr) {
+      if(popupErr.code === 'auth/popup-blocked' || 
+         popupErr.code === 'auth/popup-closed-by-user' ||
+         popupErr.code === 'auth/cancelled-popup-request') {
+        // Popup blocked — use redirect (works on all devices)
+        await auth.signInWithRedirect(provider);
+      } else {
+        throw popupErr;
+      }
+    }
   } catch(e) {
-    if(e.code !== 'auth/popup-closed-by-user') {
-      toast('❌ Error al iniciar sesión: ' + e.message);
+    if(e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') {
+      setLoginState('error', 'Error al iniciar sesión: ' + e.message);
+    }
+  }
+}
+
+// ── Handle redirect result on page load
+async function checkRedirectResult() {
+  if(!auth) return;
+  try {
+    const result = await auth.getRedirectResult();
+    if(result && result.user) {
+      await onUserLoggedIn(result.user);
+    }
+  } catch(e) {
+    if(e.code !== 'auth/no-auth-event') {
+      console.warn('Redirect result error:', e.message);
     }
   }
 }
@@ -1551,7 +1588,6 @@ function renderSelector() {
   if(esAdmin) loadUsuarios();
   // Proyectos grid — filtered by user role
   const proyParaUsuario = getProyectosParaUsuario();
-  const esAdmin = !userProfile || userProfile.rol === 'admin';
   document.getElementById('proyectosGrid').innerHTML =
     proyParaUsuario.map(p=>`
       <div class="proy-card ${p.estado}">
