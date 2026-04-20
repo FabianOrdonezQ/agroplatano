@@ -1111,7 +1111,54 @@ async function loadProyectos() {
   const snap = await db.collection('proyectos').get();
   proyectos = snap.docs.map(d => ({id:d.id,...d.data()}));
   // If no projects, seed the historical one
-  if(proyectos.length===0) await seedProject2025LTJC();
+  if(proyectos.length===0) {
+    await seedProject2025LTJC();
+    return;
+  }
+  // Load real stats for each project from Firestore
+  await Promise.all(proyectos.map(async p => {
+    try {
+      const regsSnap = await db.collection('proyectos').doc(p.id).collection('registros').get();
+      const regs = regsSnap.docs.map(d => d.data());
+      // If project exists but has no registros, seed the historical data
+      if(regsSnap.empty && p.id === '2025LTJC') {
+        await seedRegistros2025LTJC(p.id);
+        p._gastos = HIST_REGISTROS.filter(r=>r.cat!=='Ingresos').reduce((s,r)=>s+r.valor,0);
+        p._ingresos = HIST_REGISTROS.filter(r=>r.cat==='Ingresos').reduce((s,r)=>s+r.valor,0);
+      } else {
+        p._gastos = regs.filter(r=>r.cat!=='Ingresos').reduce((s,r)=>s+(r.valor||0),0);
+        p._ingresos = regs.filter(r=>r.cat==='Ingresos').reduce((s,r)=>s+(r.valor||0),0);
+      }
+    } catch(e) { p._gastos=0; p._ingresos=0; }
+  }));
+}
+
+async function seedRegistros2025LTJC(proyId) {
+  if(!db) return;
+  toast('⏳ Cargando registros históricos 2025LTJC…');
+  // Update project metadata
+  await db.collection('proyectos').doc(proyId).set({
+    socios:[{nombre:'Juan Castro',pct:0.40},{nombre:'Fabián Ordóñez',pct:0.60}],
+    giroInicialCosecha:17840000, fechaGiroInicial:'2026-02-11', plantas:3660
+  },{merge:true});
+  // Seed registros in batch
+  const batchSize=400;
+  for(let i=0;i<HIST_REGISTROS.length;i+=batchSize){
+    const batch=db.batch();
+    HIST_REGISTROS.slice(i,i+batchSize).forEach(r=>{
+      batch.set(db.collection('proyectos').doc(proyId).collection('registros').doc(), r);
+    });
+    await batch.commit();
+  }
+  // Seed giros
+  const gb=db.batch();
+  HIST_GIROS.forEach(g=>{ gb.set(db.collection('proyectos').doc(proyId).collection('giros').doc(),g); });
+  await gb.commit();
+  // Seed gantt
+  const gb2=db.batch();
+  GANTT_TEMPLATE.forEach(t=>{ gb2.set(db.collection('proyectos').doc(proyId).collection('gantt').doc(String(t.id)),t); });
+  await gb2.commit();
+  toast('✅ Datos históricos cargados en Firebase');
 }
 
 async function seedProject2025LTJC() {
@@ -1167,6 +1214,27 @@ function irASelector() {
   renderSelector();
 }
 
+async function recargarStatsProyecto(id) {
+  if(!db) return;
+  toast('⏳ Recargando datos de '+id+'…');
+  const p = proyectos.find(p=>p.id===id);
+  if(!p) return;
+  try {
+    const snap = await db.collection('proyectos').doc(id).collection('registros').get();
+    if(snap.empty && id==='2025LTJC') {
+      await seedRegistros2025LTJC(id);
+      p._gastos = HIST_REGISTROS.filter(r=>r.cat!=='Ingresos').reduce((s,r)=>s+r.valor,0);
+      p._ingresos = HIST_REGISTROS.filter(r=>r.cat==='Ingresos').reduce((s,r)=>s+r.valor,0);
+    } else {
+      const regs = snap.docs.map(d=>d.data());
+      p._gastos = regs.filter(r=>r.cat!=='Ingresos').reduce((s,r)=>s+(r.valor||0),0);
+      p._ingresos = regs.filter(r=>r.cat==='Ingresos').reduce((s,r)=>s+(r.valor||0),0);
+    }
+    toast('✅ '+id+': Gastos '+fmt(p._gastos)+' | Ingresos '+fmt(p._ingresos));
+    renderSelector();
+  } catch(e) { toast('❌ Error: '+e.message); }
+}
+
 function renderSelector() {
   // Consolidado
   const totalGasto = proyectos.reduce((s,p)=>s+(p._gastos||0),0);
@@ -1180,15 +1248,18 @@ function renderSelector() {
   // Proyectos grid
   document.getElementById('proyectosGrid').innerHTML =
     proyectos.map(p=>`
-      <div class="proy-card ${p.estado}" onclick="abrirProyecto('${p.id}')">
-        <div class="proy-card-code">${p.codigo}</div>
-        <div class="proy-card-name">${p.nombre}</div>
+      <div class="proy-card ${p.estado}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px">
+          <div class="proy-card-code">${p.codigo}</div>
+          <button onclick="event.stopPropagation();recargarStatsProyecto('${p.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--gris-claro);padding:0" title="Recargar datos">🔄</button>
+        </div>
+        <div class="proy-card-name" onclick="abrirProyecto('${p.id}')" style="cursor:pointer">${p.nombre}</div>
         <span class="proy-badge ${p.estado}">${p.estado==='activo'?'Activo':'Cerrado'}</span>
-        <div class="proy-card-stats">
+        <div class="proy-card-stats" onclick="abrirProyecto('${p.id}')" style="cursor:pointer">
           <div class="proy-stat"><div class="proy-stat-lbl">Gastos</div><div class="proy-stat-val">${fmt(p._gastos||0)}</div></div>
-          <div class="proy-stat"><div class="proy-stat-lbl">Ingresos</div><div class="proy-stat-val">${fmt(p._ingresos||0)}</div></div>
+          <div class="proy-stat"><div class="proy-stat-lbl">Ingresos</div><div class="proy-stat-val" style="color:var(--verde)">${fmt(p._ingresos||0)}</div></div>
           <div class="proy-stat"><div class="proy-stat-lbl">Plantas</div><div class="proy-stat-val">${(p.plantas||0).toLocaleString()}</div></div>
-          <div class="proy-stat"><div class="proy-stat-lbl">Balance</div><div class="proy-stat-val" style="color:${(p._ingresos||0)-(p._gastos||0)>=0?'var(--verde)':'var(--rojo)'}">${fmt((p._ingresos||0)-(p._gastos||0))}</div></div>
+          <div class="proy-stat"><div class="proy-stat-lbl">Balance</div><div class="proy-stat-val" style="color:${(p._ingresos||0)-(p._gastos||0)>=0?'var(--verde-claro)':'var(--rojo)'}">${fmt((p._ingresos||0)-(p._gastos||0))}</div></div>
         </div>
       </div>
     `).join('') +
