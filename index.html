@@ -360,6 +360,19 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
 .stab { padding:6px 16px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:none; background:#e2e8f0; color:var(--gris); transition:all 0.2s; }
 .stab.active { background:var(--verde); color:#fff; }
 
+/* ── FILTRO CONSOLIDADO ── */
+.fcons-btn {
+  padding:5px 14px; border-radius:20px; font-size:11px; font-weight:600;
+  cursor:pointer; border:1.5px solid #e2e8f0; background:#fff; color:var(--gris);
+  transition:all 0.2s; white-space:nowrap;
+}
+.fcons-btn:hover { border-color:var(--verde); color:var(--verde); }
+.fcons-btn.active { background:var(--verde); border-color:var(--verde); color:#fff; }
+.fcons-btn.ano { border-color:#2471a3; color:#2471a3; }
+.fcons-btn.ano.active { background:#2471a3; border-color:#2471a3; color:#fff; }
+.fcons-btn.proy { border-color:var(--naranja); color:var(--naranja); }
+.fcons-btn.proy.active { background:var(--naranja); border-color:var(--naranja); color:#fff; }
+
 /* ── RESPONSIVE ── */
 @media(max-width:640px) {
   .topbar { padding:0 14px; }
@@ -421,6 +434,18 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
       <div class="selector-header">
         <h2>🌱 Mis Proyectos</h2>
         <button class="btn btn-primary" onclick="openNewProyecto()">➕ Nuevo proyecto</button>
+      </div>
+
+      <!-- Filtros consolidado -->
+      <div style="background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:var(--sombra);border:1px solid rgba(30,107,60,0.07)">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:700;color:var(--verde);text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap">Consolidar por:</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="filtroConsolidadoBtns">
+            <button class="fcons-btn active" onclick="setFiltroConsolidado('todos')" data-f="todos">Todos los proyectos</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-left:8px" id="filtroAnosBtns"></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="filtroProysBtns"></div>
+        </div>
       </div>
 
       <!-- Resumen consolidado -->
@@ -1214,6 +1239,86 @@ function irASelector() {
   renderSelector();
 }
 
+// ── FILTRO CONSOLIDADO STATE
+let filtroActivo = { tipo: 'todos', valor: null }; // tipos: todos | ano | proyecto
+
+function setFiltroConsolidado(tipo, valor=null) {
+  filtroActivo = { tipo, valor };
+  // Update button states
+  document.querySelectorAll('.fcons-btn').forEach(b => {
+    b.classList.remove('active');
+    if(b.dataset.f === tipo && (!valor || b.dataset.v === String(valor))) b.classList.add('active');
+  });
+  renderConsolidado();
+}
+
+function renderFiltrosBtns() {
+  // Extract unique years from project codes (e.g., 2025LTJC → 2025)
+  const anos = [...new Set(proyectos.map(p => p.codigo.match(/^(\d{4})/)?.[1]).filter(Boolean))].sort();
+  
+  // Year buttons
+  const anosContainer = document.getElementById('filtroAnosBtns');
+  if(anosContainer) {
+    anosContainer.innerHTML = anos.length > 1 ? 
+      '<span style="font-size:11px;color:var(--gris-claro);margin-right:2px">Año:</span>' +
+      anos.map(a => `<button class="fcons-btn ano" data-f="ano" data-v="${a}" onclick="setFiltroConsolidado('ano','${a}')">${a}</button>`).join('') 
+      : '';
+  }
+
+  // Individual project buttons
+  const proyContainer = document.getElementById('filtroProysBtns');
+  if(proyContainer && proyectos.length > 1) {
+    proyContainer.innerHTML = 
+      '<span style="font-size:11px;color:var(--gris-claro);margin-right:2px">Proyecto:</span>' +
+      proyectos.map(p => `<button class="fcons-btn proy" data-f="proyecto" data-v="${p.id}" onclick="setFiltroConsolidado('proyecto','${p.id}')">${p.codigo}</button>`).join('');
+  } else if(proyContainer) {
+    proyContainer.innerHTML = '';
+  }
+}
+
+function getProyectosFiltrados() {
+  if(filtroActivo.tipo === 'todos') return proyectos;
+  if(filtroActivo.tipo === 'ano') return proyectos.filter(p => p.codigo.startsWith(filtroActivo.valor));
+  if(filtroActivo.tipo === 'proyecto') return proyectos.filter(p => p.id === filtroActivo.valor);
+  return proyectos;
+}
+
+function renderConsolidado() {
+  const filtered = getProyectosFiltrados();
+  const totalGasto = filtered.reduce((s,p)=>s+(p._gastos||0),0);
+  const totalIngreso = filtered.reduce((s,p)=>s+(p._ingresos||0),0);
+  const utilidad = totalIngreso - totalGasto;
+  const nActivos = filtered.filter(p=>p.estado==='activo').length;
+  const nTotal = filtered.length;
+  
+  const sufijo = filtroActivo.tipo === 'todos' ? 'Todos los proyectos' 
+    : filtroActivo.tipo === 'ano' ? `Año ${filtroActivo.valor} (${nTotal} proyecto${nTotal!==1?'s':''})`
+    : filtered[0]?.nombre || filtroActivo.valor;
+
+  document.getElementById('consolidadoGrid').innerHTML=`
+    <div class="cons-card gast">
+      <div class="cons-label">Total Gastado</div>
+      <div class="cons-val">${fmt(totalGasto)}</div>
+      <div class="cons-sub">${sufijo}</div>
+    </div>
+    <div class="cons-card ing">
+      <div class="cons-label">Total Ingresos</div>
+      <div class="cons-val">${fmt(totalIngreso)}</div>
+      <div class="cons-sub">Ventas acumuladas</div>
+    </div>
+    <div class="cons-card util">
+      <div class="cons-label">Utilidad Neta</div>
+      <div class="cons-val" style="color:${utilidad>=0?'var(--verde-claro)':'var(--rojo)'}">${fmt(utilidad)}</div>
+      <div class="cons-sub">${utilidad>=0?'Excedente':'Déficit'}</div>
+    </div>
+    <div class="cons-card proy">
+      <div class="cons-label">Proyectos Activos</div>
+      <div class="cons-val">${nActivos}</div>
+      <div class="cons-sub">${nTotal} en selección</div>
+    </div>
+  `;
+}
+
 async function recargarStatsProyecto(id) {
   if(!db) return;
   toast('⏳ Recargando datos de '+id+'…');
@@ -1236,15 +1341,10 @@ async function recargarStatsProyecto(id) {
 }
 
 function renderSelector() {
-  // Consolidado
-  const totalGasto = proyectos.reduce((s,p)=>s+(p._gastos||0),0);
-  const totalIngreso = proyectos.reduce((s,p)=>s+(p._ingresos||0),0);
-  document.getElementById('consolidadoGrid').innerHTML=`
-    <div class="cons-card gast"><div class="cons-label">Total Gastado</div><div class="cons-val">${fmt(totalGasto)}</div><div class="cons-sub">Todos los proyectos</div></div>
-    <div class="cons-card ing"><div class="cons-label">Total Ingresos</div><div class="cons-val">${fmt(totalIngreso)}</div><div class="cons-sub">Ventas acumuladas</div></div>
-    <div class="cons-card util"><div class="cons-label">Utilidad Neta</div><div class="cons-val" style="color:${totalIngreso-totalGasto>=0?'var(--verde-claro)':'var(--rojo)'}">${fmt(totalIngreso-totalGasto)}</div><div class="cons-sub">${totalIngreso-totalGasto>=0?'Excedente':'Déficit'}</div></div>
-    <div class="cons-card proy"><div class="cons-label">Proyectos Activos</div><div class="cons-val">${proyectos.filter(p=>p.estado==='activo').length}</div><div class="cons-sub">${proyectos.length} en total</div></div>
-  `;
+  // Render filter buttons
+  renderFiltrosBtns();
+  // Render consolidado with current filter
+  renderConsolidado();
   // Proyectos grid
   document.getElementById('proyectosGrid').innerHTML =
     proyectos.map(p=>`
