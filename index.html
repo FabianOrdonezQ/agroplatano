@@ -645,20 +645,36 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--v
 
 <!-- MODAL CONFIRMACIÓN RESET -->
 <div class="modal-overlay" id="resetModal">
-  <div class="modal" style="max-width:420px;text-align:center">
+  <div class="modal" style="max-width:460px;text-align:center">
     <div style="font-size:48px;margin-bottom:12px">⚠️</div>
-    <div class="modal-title" style="text-align:center;color:var(--rojo)">¿Borrar todos los datos?</div>
-    <p style="font-size:13px;color:var(--gris-texto);margin-bottom:20px;line-height:1.6">
-      Esta acción eliminará <strong>todos los registros, transacciones y configuraciones</strong> de la aplicación y dejará la base de datos completamente en blanco.<br><br>
-      <strong style="color:var(--rojo)">Esta acción no se puede deshacer.</strong>
+    <div class="modal-title" style="text-align:center;color:var(--rojo)">¿Qué deseas hacer?</div>
+    <p style="font-size:13px;color:var(--gris-texto);margin-bottom:18px;line-height:1.6">
+      Elige una opción para gestionar los datos de la aplicación.
     </p>
-    <div style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:8px;padding:12px;margin-bottom:20px;font-size:12px;color:#7f1d1d;text-align:left">
-      💡 <strong>Recomendación:</strong> Antes de borrar, exporta tus datos desde la sección <em>Registros → Exportar CSV</em> para conservar una copia.
+
+    <!-- Opción 1: Limpiar para nuevo cultivo -->
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:16px;margin-bottom:12px;text-align:left;cursor:pointer" onclick="executeReset('nuevo')">
+      <div style="font-weight:700;color:#166534;margin-bottom:4px;font-size:14px">🌱 Nuevo cultivo — Conservar estructura</div>
+      <div style="font-size:12px;color:#166534;line-height:1.5">Borra todos los registros de gastos e ingresos pero <strong>mantiene el Gantt y la configuración</strong>. Ideal para empezar un nuevo ciclo de siembra.</div>
+      <div style="margin-top:10px">
+        <span style="background:#16a34a;color:#fff;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600">Seleccionar →</span>
+      </div>
     </div>
-    <div style="display:flex;gap:12px;justify-content:center">
-      <button class="btn btn-outline" onclick="document.getElementById('resetModal').classList.remove('open')" style="flex:1">Cancelar</button>
-      <button class="btn" onclick="executeReset()" style="flex:1;background:var(--rojo);color:#fff">Sí, borrar todo</button>
+
+    <!-- Opción 2: Borrar todo completamente -->
+    <div style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:10px;padding:16px;margin-bottom:18px;text-align:left;cursor:pointer" onclick="executeReset('todo')">
+      <div style="font-weight:700;color:#991b1b;margin-bottom:4px;font-size:14px">🗑️ Borrar todo — Base de datos en blanco</div>
+      <div style="font-size:12px;color:#991b1b;line-height:1.5">Elimina <strong>absolutamente todos los datos</strong> incluyendo registros históricos, Gantt y configuración. La app quedará completamente vacía.</div>
+      <div style="margin-top:10px">
+        <span style="background:var(--rojo);color:#fff;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600">Borrar todo →</span>
+      </div>
     </div>
+
+    <div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:16px;font-size:11.5px;color:#92400e;text-align:left">
+      💡 <strong>Recomendación:</strong> Antes de borrar, exporta tus datos desde <em>Registros → Exportar CSV</em>.
+    </div>
+
+    <button class="btn btn-outline" onclick="document.getElementById('resetModal').classList.remove('open')" style="width:100%">Cancelar</button>
   </div>
 </div>
 
@@ -1686,6 +1702,18 @@ function subscribeToData() {
 // ── Seed DB with historical data (only on first use)
 async function seedHistoricalData() {
   if(!db || !cloudMode) return;
+  // Check if user intentionally cleared the database
+  try {
+    const cfg = await db.collection('config').doc('settings').get();
+    if(cfg.exists && cfg.data().seeded === true) {
+      // User cleared intentionally — don't reload historical data
+      data = [];
+      setConnBadge('connected','☁️ Sincronizado');
+      refreshAll();
+      return;
+    }
+  } catch(e) {}
+  // First time ever — load historical data
   showToast('⏳ Cargando datos históricos en la nube…');
   const batch = db.batch();
   DB.forEach(item => {
@@ -1694,6 +1722,8 @@ async function seedHistoricalData() {
   });
   try {
     await batch.commit();
+    // Mark as seeded
+    await db.collection('config').doc('settings').set({ seeded: true, seededAt: new Date().toISOString() });
     showToast('✅ Datos históricos cargados en Firebase');
   } catch(e) {
     showToast('⚠️ Error al cargar datos iniciales: ' + e.message);
@@ -1771,28 +1801,61 @@ async function deleteReg(id, arrayIdx) {
 }
 
 // ── RESET all data
-async function executeReset() {
+async function executeReset(mode) {
   document.getElementById('resetModal').classList.remove('open');
-  if(cloudMode && db) {
-    showToast('⏳ Borrando todos los registros de la nube…');
-    try {
-      const snap = await db.collection('registros').get();
-      const batch = db.batch();
-      snap.docs.forEach(d => batch.delete(d.ref));
-      await batch.commit();
-      const snapG = await db.collection('gantt').get();
-      const batchG = db.batch();
-      snapG.docs.forEach(d => batchG.delete(d.ref));
-      await batchG.commit();
-      showToast('✅ Todos los datos eliminados de la nube');
-    } catch(e) { showToast('❌ Error al borrar: ' + e.message); }
-  } else {
+
+  if(mode === 'nuevo') {
+    // ── Borrar solo registros, mantener Gantt
+    showToast('⏳ Preparando nuevo cultivo…');
+    if(cloudMode && db) {
+      try {
+        const snap = await db.collection('registros').get();
+        if(!snap.empty) {
+          const batch = db.batch();
+          snap.docs.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+        showToast('✅ Registros borrados. ¡Listo para nuevo cultivo!');
+      } catch(e) { showToast('❌ Error: ' + e.message); }
+    } else {
+      data = [];
+      saveLocal();
+      refreshAll();
+      showToast('✅ Registros borrados (modo local)');
+    }
+    // Reset Gantt progress only
+    GANTT_TASKS.forEach(t => { t.progress = 0; t.realCost = 0; });
+
+  } else if(mode === 'todo') {
+    // ── Borrar absolutamente todo
+    showToast('⏳ Borrando todos los datos…');
+    if(cloudMode && db) {
+      try {
+        const snap = await db.collection('registros').get();
+        if(!snap.empty) {
+          const batch = db.batch();
+          snap.docs.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+        const snapG = await db.collection('gantt').get();
+        if(!snapG.empty) {
+          const batchG = db.batch();
+          snapG.docs.forEach(d => batchG.delete(d.ref));
+          await batchG.commit();
+        }
+        // Mark DB as intentionally empty so it doesn't reload historical data
+        await db.collection('config').doc('settings').set({ seeded: true, clearedAt: new Date().toISOString() });
+        showToast('✅ Todo borrado. Base de datos completamente en blanco.');
+      } catch(e) { showToast('❌ Error: ' + e.message); }
+    } else {
+      data = [];
+      localStorage.removeItem(LOCAL_KEY);
+      showToast('✅ Todo borrado en modo local');
+    }
     data = [];
-    saveLocal();
+    GANTT_TASKS.forEach(t => { t.progress = 0; t.realCost = 0; });
     refreshAll();
-    showToast('✅ Datos eliminados en modo local');
   }
-  GANTT_TASKS.forEach(t => { t.progress = 0; t.realCost = 0; });
 }
 
 // ── SAVE Gantt progress (override to also push to cloud)
