@@ -1514,11 +1514,11 @@ const BUENAS_PRACTICAS = [
     titulo:"🦠 Manejo Fitosanitario",
     headerClass:"ph-purple",
     items:[
-      {icon:"⚠️",text:"Sigatoka negra (Mycosphaerella fijiensis): principal amenaza. Fumigación cada 14-21 días con fungicidas sistémicos (propiconazole, azoxystrobin, trifloxystrobin)."},
-      {icon:"⚠️",text:"Moko bacteriano (Ralstonia solanacearum): erradicar plantas enfermas de inmediato. No llevar herramientas sin desinfectar entre lotes."},
+      {icon:"⚠️",text:"Sigatoka negra (Mycosphaerella fijiensis): principal amenaza. Fumigación cada 14-21 días con fungicidas sistémicos."},
+      {icon:"⚠️",text:"Moko bacteriano (Ralstonia solanacearum): erradicar plantas enfermas de inmediato. No llevar herramientas sin desinfectar."},
       {icon:"⚠️",text:"Picudo negro (Cosmopolites sordidus): instalar trampas con atrayente. Aplicar insecticida drench si hay infestación."},
       {icon:"✅",text:"Rotación de fungicidas para evitar resistencia. Usar al menos 3 moléculas activas distintas en el ciclo."},
-      {icon:"✅",text:"Llevar registro semanal de incidencia de enfermedades, severidad (% hoja afectada) y acción tomada."},
+      {icon:"✅",text:"Llevar registro semanal de incidencia de enfermedades, severidad y acción tomada."},
       {icon:"✅",text:"Deshoje sanitario: eliminar hojas con más del 50% de área foliar afectada por sigatoka."},
     ]
   },
@@ -1528,7 +1528,7 @@ const BUENAS_PRACTICAS = [
     items:[
       {icon:"✅",text:"Deshije/descolinar: dejar 1 hijo por planta (hijo de espada preferiblemente). Eliminar los demás cada 30-45 días."},
       {icon:"✅",text:"Despunte: eliminar la flor masculina (mancuerna) a los 7-10 días de aparecida la inflorescencia."},
-      {icon:"✅",text:"Embolse del racimo: fundamental para proteger contra insectos, rozamiento y mejorar calidad. Hacer al momento de aparición de inflorescencia."},
+      {icon:"✅",text:"Embolse del racimo: fundamental para proteger contra insectos, rozamiento y mejorar calidad."},
       {icon:"✅",text:"Desgüasque: eliminar hojas secas y guías para evitar acumulación de humedad y focos de enfermedades."},
       {icon:"✅",text:"Amarre y soporte: en plantas con racimo grande usar tutores o amarres para evitar volcamiento."},
       {icon:"✅",text:"Control de malezas manual o herbicidas selectivos. Evitar compactación del suelo con maquinaria pesada."},
@@ -1538,128 +1538,11 @@ const BUENAS_PRACTICAS = [
     titulo:"🍌 Cosecha y Postcosecha",
     headerClass:"ph-yellow",
     items:[
-      {icon:"✅",text:"Cosechar cuando el racimo tenga el grado de llenado adecuado según destino: mercado local (más maduro) o exportación (más verde)."},
-      {icon:"✅",text:"El tiempo de cosecha varía entre 9-14 meses según variedad, altitud y manejo. Llevar registro de la fecha de embolse para planificar el corte."},
+      {icon:"✅",text:"Cosechar cuando el racimo tenga el grado de llenado adecuado según destino: mercado local o exportación."},
+      {icon:"✅",text:"El tiempo de cosecha varía entre 9-14 meses según variedad, altitud y manejo."},
       {icon:"✅",text:"Usar machete bien afilado y desinfectado para cortar el vástago. Evitar magulladuras en los dedos."},
       {icon:"✅",text:"Registrar cada cosecha: fecha, número de racimos, peso, calidad (primera, segunda, pica) y precio de venta."},
-      {icon:"✅",text:"Calcular rentabilidad por cosecha: ingresos - costos operativos del período para tomar decisiones de inversión."},
-      {icon:"✅",text:"Para el 2do ciclo: seleccionar el mejor hijo de espada durante la cosecha del primer ciclo."},
-    ]
-  },
-];
-
-// ══════════════════════════════════════════
-//  ESTADO Y HELPERS
-
-// ══════════════════════════════════════════
-const MONTHS = [
-  {key:"2025-02",label:"Feb 25"},{key:"2025-03",label:"Mar 25"},{key:"2025-04",label:"Abr 25"},
-  {key:"2025-05",label:"May 25"},{key:"2025-06",label:"Jun 25"},{key:"2025-07",label:"Jul 25"},
-  {key:"2025-08",label:"Ago 25"},{key:"2025-09",label:"Sep 25"},{key:"2025-10",label:"Oct 25"},
-  {key:"2025-11",label:"Nov 25"},{key:"2025-12",label:"Dic 25"},{key:"2026-01",label:"Ene 26"},
-  {key:"2026-02",label:"Feb 26"},{key:"2026-03",label:"Mar 26"},{key:"2026-04",label:"Abr 26"},
-  {key:"2026-05",label:"May 26"},{key:"2026-06",label:"Jun 26"},{key:"2026-07",label:"Jul 26"},
-  {key:"2026-08",label:"Ago 26"},{key:"2026-09",label:"Sep 26"},{key:"2026-10",label:"Oct 26"},
-  {key:"2026-11",label:"Nov 26"},{key:"2026-12",label:"Dic 26"},
-];
-
-let GANTT_TASKS = [
-  {id:1,label:"🌱 FASE 1: Establecimiento",type:"phase",start:"2025-02",end:"2025-04",progress:100,cost:14000000,realCost:0,critical:false,notes:"Preparación, siembra y resiembra"},
-  {id:2,label:"Análisis de suelos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:160000,realCost:160000,critical:false,notes:"Análisis químico y físico para plan de fertilización"},
-  {id:3,label:"Mecanización y tableado",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:810000,realCost:810000,critical:false,notes:"Mecanizada + tableado del terreno"},
-  {id:4,label:"Siembra colinos",type:"task",parent:1,start:"2025-02",end:"2025-02",progress:100,cost:3288600,realCost:3288600,critical:true,notes:"Compra y siembra de colinos seleccionados"},
-  {id:5,label:"Resiembra y ajuste",type:"task",parent:1,start:"2025-03",end:"2025-04",progress:100,cost:540000,realCost:540000,critical:false,notes:"Resiembra con 200 colinos adicionales"},
-  {id:6,label:"🌿 FASE 2: Desarrollo vegetativo",type:"phase",start:"2025-04",end:"2025-08",progress:100,cost:22000000,realCost:0,critical:false,notes:"Nutrición, control fitosanitario, mantenimiento"},
-  {id:7,label:"Plan de fertilización (1ª abonada)",type:"task",parent:6,start:"2025-04",end:"2025-04",progress:100,cost:3165900,realCost:3165900,critical:true,notes:"DAP, KCL, Triple18, Gallinaza, foliares"},
-  {id:8,label:"Control sigatoka — ciclos fumigación",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:2500000,realCost:0,critical:true,notes:"Fumigación quincenal con fungicidas sistémicos"},
-  {id:9,label:"Mantenimiento terreno / deshierbe",type:"task",parent:6,start:"2025-04",end:"2025-12",progress:100,cost:1200000,realCost:0,critical:false,notes:"Jornales periódicos de desyerbe y mantenimiento"},
-  {id:10,label:"2ª abonada — foliares y edáficos",type:"task",parent:6,start:"2025-05",end:"2025-05",progress:100,cost:1898201,realCost:1898201,critical:true,notes:"Nutribans, foliares, drench de raíz"},
-  {id:11,label:"3ª abonada — cal + correctivos",type:"task",parent:6,start:"2025-07",end:"2025-07",progress:100,cost:1687175,realCost:1687175,critical:true,notes:"Cal dolomita, fertis, foliares sigatoka"},
-  {id:12,label:"Instalación sistema de riego",type:"task",parent:6,start:"2025-11",end:"2025-12",progress:100,cost:6000000,realCost:5774000,critical:true,notes:"Motobomba, mangueras, instalación completa"},
-  {id:13,label:"🍌 FASE 3: Llenado y cosecha",type:"phase",start:"2025-10",end:"2026-04",progress:75,cost:18000000,realCost:0,critical:false,notes:"Embolse, amarre, primera cosecha"},
-  {id:14,label:"Embolse de racimos",type:"task",parent:13,start:"2025-10",end:"2026-02",progress:80,cost:1200000,realCost:726000,critical:true,notes:"Bolsas protectoras, registro semanal de racimos embolsados"},
-  {id:15,label:"Amarre y soporte de matas",type:"task",parent:13,start:"2025-12",end:"2026-06",progress:60,cost:400000,realCost:280000,critical:false,notes:"Fibra de amarre para plantas con racimo"},
-  {id:16,label:"Primera cosecha 🎉",type:"task",parent:13,start:"2026-01",end:"2026-01",progress:100,cost:500000,realCost:180000,critical:true,notes:"¡Primera venta: $1.931.000! (ene 7, 2026)"},
-  {id:17,label:"Cosechas continuas",type:"task",parent:13,start:"2026-01",end:"2026-09",progress:40,cost:2000000,realCost:0,critical:false,notes:"Corte semanal según maduración racimos"},
-  {id:18,label:"Vigilancia nocturna cultivo",type:"task",parent:13,start:"2025-12",end:"2026-04",progress:70,cost:1500000,realCost:1130000,critical:false,notes:"Jornales nocturnos para protección del cultivo"},
-  {id:19,label:"♻️ FASE 4: Mantenimiento — 2do ciclo",type:"phase",start:"2026-03",end:"2026-12",progress:0,cost:15000000,realCost:0,critical:false,notes:"Preparación segundo ciclo productivo"},
-  {id:20,label:"Descolinar — selección de hijos",type:"task",parent:19,start:"2026-03",end:"2026-05",progress:0,cost:800000,realCost:0,critical:true,notes:"Dejar 1 hijo seleccionado por planta"},
-  {id:21,label:"4ª abonada — 2do ciclo",type:"task",parent:19,start:"2026-04",end:"2026-04",progress:0,cost:3000000,realCost:0,critical:true,notes:"Plan nutricional completo para hijo seleccionado"},
-  {id:22,label:"Control de plagas — Moko, picudo",type:"task",parent:19,start:"2026-03",end:"2026-12",progress:0,cost:1200000,realCost:0,critical:true,notes:"Inspección semanal y aplicación preventiva"},
-  {id:23,label:"Renovación del sistema de riego",type:"task",parent:19,start:"2026-06",end:"2026-07",progress:0,cost:1500000,realCost:0,critical:false,notes:"Mantenimiento y ampliación red de riego"},
-];
-
-// ══════════════════════════════════════════
-//  BUENAS PRÁCTICAS
-// ══════════════════════════════════════════
-const BUENAS_PRACTICAS = [
-  {
-    titulo:"🌱 Selección y Preparación del Terreno",
-    headerClass:"ph-green",
-    items:[
-      {icon:"✅",text:"Realizar análisis de suelo ANTES de sembrar para determinar pH (ideal 5.5–7.0), nutrientes y textura."},
-      {icon:"✅",text:"El pH óptimo para plátano es 5.5 a 6.5. Aplicar cal dolomita si el suelo es ácido (pH < 5.5)."},
-      {icon:"✅",text:"Asegurarse de que el terreno tenga buen drenaje natural o construir zanjas de drenaje. Plátano no tolera encharcamientos."},
-      {icon:"✅",text:"Preparar el suelo con mecanización (arado, rastrillado) antes de la siembra para romper capas compactadas."},
-      {icon:"✅",text:"Definir el trazado y densidad de siembra: 3×3 m (1.111 plantas/ha) o 2×2.5 m para alta densidad."},
-    ]
-  },
-  {
-    titulo:"🌿 Siembra y Material de Propagación",
-    headerClass:"ph-brown",
-    items:[
-      {icon:"✅",text:"Usar colinos sanos, de buena procedencia, libres de picudo (Cosmopolites sordidus) y Moko (Ralstonia solanacearum)."},
-      {icon:"✅",text:"Limpiar y desinfectar los colinos antes de sembrar: sumergir en solución de insecticida + fungicida."},
-      {icon:"✅",text:"La profundidad de siembra debe ser de 20-30 cm, colocando el cormo de forma que la yema quede cubierta."},
-      {icon:"✅",text:"Realizar resiembra en las primeras 4 semanas para corregir mortalidad y garantizar densidad objetivo."},
-      {icon:"✅",text:"Registrar el número de colinos sembrados, procedencia y fecha para llevar trazabilidad completa."},
-    ]
-  },
-  {
-    titulo:"💧 Fertilización y Nutrición",
-    headerClass:"ph-blue",
-    items:[
-      {icon:"✅",text:"Primera abonada: a los 30-45 días después de siembra. Usar fórmulas completas (N-P-K) + micronutrientes."},
-      {icon:"✅",text:"Programa mínimo de 4 fertilizaciones anuales. El plátano es muy exigente en K (Potasio) y N (Nitrógeno)."},
-      {icon:"✅",text:"Fertilización foliar cada 15-20 días para complementar la edáfica. Incluir boro, zinc y magnesio."},
-      {icon:"✅",text:"La Gallinaza es un excelente abono orgánico; aplicar 5-10 kg/planta para mejorar estructura del suelo."},
-      {icon:"✅",text:"Drench radicular con bioestimulantes (humus, biorganik) favorece el desarrollo radicular y absorción."},
-      {icon:"✅",text:"Registrar cada aplicación: producto, dosis, área, operario y fecha. ¡La trazabilidad es clave!"},
-    ]
-  },
-  {
-    titulo:"🦠 Manejo Fitosanitario",
-    headerClass:"ph-purple",
-    items:[
-      {icon:"⚠️",text:"Sigatoka negra (Mycosphaerella fijiensis): principal amenaza. Fumigación cada 14-21 días con fungicidas sistémicos (propiconazole, azoxystrobin, trifloxystrobin)."},
-      {icon:"⚠️",text:"Moko bacteriano (Ralstonia solanacearum): erradicar plantas enfermas de inmediato. No llevar herramientas sin desinfectar entre lotes."},
-      {icon:"⚠️",text:"Picudo negro (Cosmopolites sordidus): instalar trampas con atrayente. Aplicar insecticida drench si hay infestación."},
-      {icon:"✅",text:"Rotación de fungicidas para evitar resistencia. Usar al menos 3 moléculas activas distintas en el ciclo."},
-      {icon:"✅",text:"Llevar registro semanal de incidencia de enfermedades, severidad (% hoja afectada) y acción tomada."},
-      {icon:"✅",text:"Deshoje sanitario: eliminar hojas con más del 50% de área foliar afectada por sigatoka."},
-    ]
-  },
-  {
-    titulo:"🌾 Labores Culturales",
-    headerClass:"ph-orange",
-    items:[
-      {icon:"✅",text:"Deshije/descolinar: dejar 1 hijo por planta (hijo de espada preferiblemente). Eliminar los demás cada 30-45 días."},
-      {icon:"✅",text:"Despunte: eliminar la flor masculina (mancuerna) a los 7-10 días de aparecida la inflorescencia."},
-      {icon:"✅",text:"Embolse del racimo: fundamental para proteger contra insectos, rozamiento y mejorar calidad. Hacer al momento de aparición de inflorescencia."},
-      {icon:"✅",text:"Desgüasque: eliminar hojas secas y guías para evitar acumulación de humedad y focos de enfermedades."},
-      {icon:"✅",text:"Amarre y soporte: en plantas con racimo grande usar tutores o amarres para evitar volcamiento."},
-      {icon:"✅",text:"Control de malezas manual o herbicidas selectivos. Evitar compactación del suelo con maquinaria pesada."},
-    ]
-  },
-  {
-    titulo:"🍌 Cosecha y Postcosecha",
-    headerClass:"ph-yellow",
-    items:[
-      {icon:"✅",text:"Cosechar cuando el racimo tenga el grado de llenado adecuado según destino: mercado local (más maduro) o exportación (más verde)."},
-      {icon:"✅",text:"El tiempo de cosecha varía entre 9-14 meses según variedad, altitud y manejo. Llevar registro de la fecha de embolse para planificar el corte."},
-      {icon:"✅",text:"Usar machete bien afilado y desinfectado para cortar el vástago. Evitar magulladuras en los dedos."},
-      {icon:"✅",text:"Registrar cada cosecha: fecha, número de racimos, peso, calidad (primera, segunda, pica) y precio de venta."},
-      {icon:"✅",text:"Calcular rentabilidad por cosecha: ingresos - costos operativos del período para tomar decisiones de inversión."},
+      {icon:"✅",text:"Calcular rentabilidad por cosecha: ingresos - costos operativos del período para tomar decisiones."},
       {icon:"✅",text:"Para el 2do ciclo: seleccionar el mejor hijo de espada durante la cosecha del primer ciclo."},
     ]
   },
