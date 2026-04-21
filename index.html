@@ -578,24 +578,170 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
       <!-- REGISTROS -->
       <div id="sec-registros" class="section">
         <div class="card">
-          <div class="card-title"><span class="dot"></span>Nuevo Registro</div>
-          <div class="form-row">
-            <div class="form-group"><label>Fecha</label><input type="date" id="rFecha"></div>
-            <div class="form-group"><label>Categoría</label>
-              <select id="rCat">
+          <div class="card-title"><span class="dot"></span><span id="formRegistroTitle">Nuevo Registro</span></div>
+
+          <!-- FILA 1: Fecha y Categoría siempre visibles -->
+          <div class="form-row" style="margin-bottom:14px">
+            <div class="form-group">
+              <label>Fecha</label>
+              <input type="date" id="rFecha">
+            </div>
+            <div class="form-group">
+              <label>Categoría</label>
+              <select id="rCat" onchange="onCatChange()">
                 <option>Preparación suelo</option><option>Siembra</option>
                 <option>Mano de Obra</option><option>Insumos agrícolas</option>
                 <option>Fertilización</option><option>Materiales y repuestos</option>
                 <option>Activos</option><option>Otros gastos</option><option>Ingresos</option>
               </select>
             </div>
-            <div class="form-group"><label>Valor (COP)</label><input type="number" id="rValor" placeholder="0"></div>
-            <div class="form-group"><label>Cantidad</label><input type="number" id="rCant" placeholder="1" step="0.1"></div>
           </div>
-          <div class="form-row">
-            <div class="form-group" style="grid-column:1/-1"><label>Detalle</label><textarea id="rDetalle" rows="2" placeholder="Descripción del gasto o ingreso..."></textarea></div>
+
+          <!-- CAMPOS DINÁMICOS según categoría -->
+
+          <!-- Mano de Obra -->
+          <div id="campos-mano" style="display:none">
+            <div class="form-row" style="margin-bottom:14px">
+              <div class="form-group">
+                <label>Tipo de jornal</label>
+                <select id="rTipoJornal">
+                  <option value="Jornal completo">Jornal completo</option>
+                  <option value="Medio jornal">Medio jornal</option>
+                  <option value="Jornal noche">Jornal noche</option>
+                  <option value="Contrato">Contrato (valor fijo)</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>N° de jornales</label>
+                <input type="number" id="rNumJornales" placeholder="1" min="0.5" step="0.5" oninput="calcManoObra()">
+              </div>
+              <div class="form-group">
+                <label>Valor por jornal (COP)</label>
+                <input type="number" id="rValorJornal" placeholder="60000" oninput="calcManoObra()">
+              </div>
+              <div class="form-group">
+                <label>Trabajador (opcional)</label>
+                <input type="text" id="rTrabajador" placeholder="Nombre del trabajador">
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom:14px">
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Actividad realizada</label>
+                <input type="text" id="rActividadMO" placeholder="Ej: Descolinar, Fumigada sigatoka, Abonada...">
+              </div>
+            </div>
+            <div style="background:var(--crema);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:12px;color:var(--gris)">Total calculado:</span>
+              <span id="totalManoObra" style="font-family:'DM Mono',monospace;font-size:16px;font-weight:600;color:var(--verde)">$0</span>
+            </div>
           </div>
-          <button class="btn btn-primary" onclick="addRegistro()">➕ Agregar registro</button>
+
+          <!-- Ingresos (Ventas) -->
+          <div id="campos-ingresos" style="display:none">
+            <div class="form-row" style="margin-bottom:14px">
+              <div class="form-group">
+                <label>Modo de venta</label>
+                <select id="rModoVenta" onchange="onModoVentaChange()">
+                  <option value="racimo">Por racimo</option>
+                  <option value="arroba">Por arroba</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label id="lblComprador2">Comprador / Destino (opcional)</label>
+                <input type="text" id="rComprador" placeholder="Ej: Mercado local, Mayorista...">
+              </div>
+            </div>
+            <!-- Tabla de calidades: cantidad + precio por cada una -->
+            <div style="background:var(--crema);border-radius:var(--r-sm);padding:14px;margin-bottom:14px">
+              <div style="display:grid;grid-template-columns:auto 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:8px">
+                <div style="font-size:10px;font-weight:700;color:var(--gris-claro);text-transform:uppercase"></div>
+                <div style="font-size:10px;font-weight:700;color:var(--gris-claro);text-transform:uppercase;text-align:center">Calidad</div>
+                <div style="font-size:10px;font-weight:700;color:var(--gris-claro);text-transform:uppercase;text-align:center" id="lblCantHeader">Cantidad</div>
+                <div style="font-size:10px;font-weight:700;color:var(--gris-claro);text-transform:uppercase;text-align:center" id="lblPrecioHeader">Precio unitario</div>
+              </div>
+              <!-- Primera -->
+              <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:8px">
+                <span style="font-size:16px">🟢</span>
+                <span style="font-size:12px;font-weight:600;color:var(--verde)" id="lblPrimera">Primera</span>
+                <input type="number" id="rPrimera" placeholder="0" min="0" step="0.5" oninput="calcVenta()" style="text-align:center">
+                <input type="number" id="rPrecioPrimera" placeholder="$ precio" oninput="calcVenta()" style="text-align:center">
+              </div>
+              <!-- Segunda -->
+              <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:8px">
+                <span style="font-size:16px">🟡</span>
+                <span style="font-size:12px;font-weight:600;color:#d97706" id="lblSegunda">Segunda</span>
+                <input type="number" id="rSegunda" placeholder="0" min="0" step="0.5" oninput="calcVenta()" style="text-align:center">
+                <input type="number" id="rPrecioSegunda" placeholder="$ precio" oninput="calcVenta()" style="text-align:center">
+              </div>
+              <!-- Pica -->
+              <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:12px">
+                <span style="font-size:16px">🔴</span>
+                <span style="font-size:12px;font-weight:600;color:var(--rojo)" id="lblPica">Pica</span>
+                <input type="number" id="rPica" placeholder="0" min="0" step="0.5" oninput="calcVenta()" style="text-align:center">
+                <input type="number" id="rPrecioPica" placeholder="$ precio" oninput="calcVenta()" style="text-align:center">
+              </div>
+              <!-- Totales -->
+              <div style="border-top:1px solid #e2e8f0;padding-top:10px;display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:4px">
+                <span></span>
+                <span style="font-size:11px;color:var(--gris-claro)">Subtotales</span>
+                <div id="subtotalPrimera" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--verde);text-align:center">$0</div>
+                <div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:4px">
+                <span></span><span></span>
+                <div id="subtotalSegunda" style="font-family:'DM Mono',monospace;font-size:11px;color:#d97706;text-align:center">$0</div>
+                <div></div>
+              </div>
+              <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr;gap:10px;align-items:center;margin-bottom:10px">
+                <span></span><span></span>
+                <div id="subtotalPica" style="font-family:'DM Mono',monospace;font-size:11px;color:var(--rojo);text-align:center">$0</div>
+                <div></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--verde-claro);padding-top:10px">
+                <span style="font-size:13px;font-weight:700;color:var(--verde)">💰 TOTAL VENTA</span>
+                <span id="totalVenta" style="font-family:'DM Mono',monospace;font-size:22px;font-weight:700;color:var(--verde)">$0</span>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Campos genéricos (todas las demás categorías) -->
+          <div id="campos-generico">
+            <div class="form-row" style="margin-bottom:14px">
+              <div class="form-group">
+                <label>Valor (COP)</label>
+                <input type="number" id="rValor" placeholder="0">
+              </div>
+              <div class="form-group">
+                <label>Cantidad</label>
+                <input type="number" id="rCant" placeholder="1" step="0.1">
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom:14px">
+              <div class="form-group" style="grid-column:1/-1">
+                <label>Detalle</label>
+                <textarea id="rDetalle" rows="2" placeholder="Descripción del gasto..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Adjuntar factura (todas las categorías) -->
+          <div style="border:1.5px dashed #cbd5e1;border-radius:var(--r-sm);padding:12px 16px;margin-bottom:16px;cursor:pointer;transition:all 0.2s" onclick="document.getElementById('rFacturaFile').click()" id="facturaZone">
+            <input type="file" id="rFacturaFile" accept="image/*,.pdf" style="display:none" onchange="onFacturaSelected(event)">
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:22px">📎</span>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:var(--gris)">Adjuntar factura o comprobante</div>
+                <div style="font-size:11px;color:var(--gris-claro)">Opcional — JPG, PNG, PDF</div>
+              </div>
+              <div id="facturaPreview" style="margin-left:auto;font-size:11px;color:var(--verde);font-weight:600"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="btnGuardarReg" onclick="guardarRegistro()">➕ Agregar registro</button>
+            <button class="btn btn-outline" id="btnCancelarEdit" style="display:none" onclick="cancelarEdicion()">✕ Cancelar</button>
+          </div>
         </div>
 
         <div class="card">
@@ -621,7 +767,7 @@ input:focus,select:focus,textarea:focus { outline:none; border-color:var(--verde
             <button class="btn btn-outline btn-sm" onclick="exportCSV()">⬇️ CSV</button>
           </div>
           <div class="table-wrap">
-            <table><thead><tr><th>Fecha</th><th>Detalle</th><th>Cat.</th><th>Cant.</th><th>Valor</th><th></th></tr></thead>
+            <table><thead><tr><th>Fecha</th><th>Detalle</th><th>Categoría</th><th>Cant.</th><th>Valor</th><th style="text-align:center">Acciones</th></tr></thead>
             <tbody id="registrosTable"></tbody></table>
           </div>
           <p style="font-size:11px;color:var(--gris-claro);margin-top:8px" id="tableCount"></p>
@@ -1724,7 +1870,7 @@ function showSec(id) {
   currentSection=id;
   if(id==='dashboard') renderDashboard();
   else if(id==='caja') renderCaja();
-  else if(id==='registros') renderRegistrosTable();
+  else if(id==='registros') { renderRegistrosTable(); onCatChange(); }
   else if(id==='gantt') renderGantt();
   else if(id==='documentos') renderDocsList();
   else if(id==='practicas') renderPracticas();
@@ -1901,25 +2047,204 @@ async function deleteGiro(id,idx) {
 // ══════════════════════════════════════════
 //  REGISTROS
 // ══════════════════════════════════════════
-async function addRegistro() {
-  const fecha=document.getElementById('rFecha').value;
-  const cat=document.getElementById('rCat').value;
-  const valor=parseFloat(document.getElementById('rValor').value);
-  const detalle=document.getElementById('rDetalle').value;
-  const cant=parseFloat(document.getElementById('rCant').value)||null;
-  if(!fecha||!valor||!detalle){toast('⚠️ Completa fecha, detalle y valor');return;}
-  const reg={fecha,cat,valor,detalle,cant};
-  if(cloudMode&&db){
-    await db.collection('proyectos').doc(proyectoActual.id).collection('registros').add(reg);
-  } else {
-    registros.unshift(reg);
-    localStorage.setItem(LOCAL_KEY+'_registros_'+proyectoActual.id,JSON.stringify(registros));
-    updateProyectoStats(); renderRegistrosTable(); renderDashboard();
+// ── Estado de edición
+let editingRegId = null;
+let editingRegIdx = null;
+let pendingFacturaFile = null;
+
+// ── Formulario dinámico según categoría
+function onCatChange() {
+  const cat = document.getElementById('rCat').value;
+  document.getElementById('campos-mano').style.display = cat==='Mano de Obra' ? 'block' : 'none';
+  document.getElementById('campos-ingresos').style.display = cat==='Ingresos' ? 'block' : 'none';
+  document.getElementById('campos-generico').style.display = (cat!=='Mano de Obra'&&cat!=='Ingresos') ? 'block' : 'none';
+}
+
+function onModoVentaChange() {
+  const modo = document.getElementById('rModoVenta').value;
+  const unidad = modo === 'arroba' ? 'arrobas' : 'racimos';
+  document.getElementById('lblCantHeader').textContent = 'Cantidad ('+unidad+')';
+  document.getElementById('lblPrecioHeader').textContent = 'Precio / '+unidad.slice(0,-1);
+  calcVenta();
+}
+
+function calcManoObra() {
+  const n = parseFloat(document.getElementById('rNumJornales').value)||0;
+  const v = parseFloat(document.getElementById('rValorJornal').value)||0;
+  const total = n * v;
+  document.getElementById('totalManoObra').textContent = fmt(total);
+}
+
+function calcVenta() {
+  const p1  = parseFloat(document.getElementById('rPrimera').value)||0;
+  const p2  = parseFloat(document.getElementById('rSegunda').value)||0;
+  const pk  = parseFloat(document.getElementById('rPica').value)||0;
+  const pr1 = parseFloat(document.getElementById('rPrecioPrimera').value)||0;
+  const pr2 = parseFloat(document.getElementById('rPrecioSegunda').value)||0;
+  const prk = parseFloat(document.getElementById('rPrecioPica').value)||0;
+  const st1 = p1 * pr1;
+  const st2 = p2 * pr2;
+  const stk = pk * prk;
+  const total = st1 + st2 + stk;
+  document.getElementById('subtotalPrimera').textContent = fmt(st1);
+  document.getElementById('subtotalSegunda').textContent = fmt(st2);
+  document.getElementById('subtotalPica').textContent = fmt(stk);
+  document.getElementById('totalVenta').textContent = fmt(total);
+}
+
+function onFacturaSelected(event) {
+  pendingFacturaFile = event.target.files[0];
+  if(pendingFacturaFile) {
+    document.getElementById('facturaPreview').textContent = '✅ ' + pendingFacturaFile.name;
+    document.getElementById('facturaZone').style.borderColor = 'var(--verde-claro)';
   }
-  document.getElementById('rValor').value='';
-  document.getElementById('rDetalle').value='';
-  document.getElementById('rCant').value='';
-  toast('✅ Registro guardado'+(cloudMode?' en la nube':' local'));
+}
+
+// ── Guardar registro (nuevo o edición)
+async function guardarRegistro() {
+  const fecha = document.getElementById('rFecha').value;
+  const cat = document.getElementById('rCat').value;
+  if(!fecha) { toast('⚠️ Selecciona la fecha'); return; }
+
+  let reg = { fecha, cat };
+
+  if(cat === 'Mano de Obra') {
+    const tipoJornal = document.getElementById('rTipoJornal').value;
+    const numJornales = parseFloat(document.getElementById('rNumJornales').value)||1;
+    const valorJornal = parseFloat(document.getElementById('rValorJornal').value)||0;
+    const trabajador = document.getElementById('rTrabajador').value.trim();
+    const actividad = document.getElementById('rActividadMO').value.trim();
+    if(!valorJornal||!actividad) { toast('⚠️ Completa la actividad y el valor por jornal'); return; }
+    const valor = tipoJornal==='Contrato' ? valorJornal : numJornales * valorJornal;
+    reg = {...reg, valor, tipoJornal, numJornales, valorJornal, trabajador, detalle: actividad, cant: numJornales};
+
+  } else if(cat === 'Ingresos') {
+    const modoVenta  = document.getElementById('rModoVenta').value;
+    const primera    = parseFloat(document.getElementById('rPrimera').value)||0;
+    const segunda    = parseFloat(document.getElementById('rSegunda').value)||0;
+    const pica       = parseFloat(document.getElementById('rPica').value)||0;
+    const precioPrimera = parseFloat(document.getElementById('rPrecioPrimera').value)||0;
+    const precioSegunda = parseFloat(document.getElementById('rPrecioSegunda').value)||0;
+    const precioPica    = parseFloat(document.getElementById('rPrecioPica').value)||0;
+    const comprador  = document.getElementById('rComprador').value.trim();
+    if(!precioPrimera && !precioSegunda && !precioPica) { toast('⚠️ Ingresa al menos un precio de venta'); return; }
+    const valor = primera*precioPrimera + segunda*precioSegunda + pica*precioPica;
+    const unidad = modoVenta==='arroba' ? 'arrobas' : 'racimos';
+    const detalle = `Venta ${primera} 1ª ($${precioPrimera.toLocaleString('es-CO')}) + ${segunda} 2ª ($${precioSegunda.toLocaleString('es-CO')}) + ${pica} pica ($${precioPica.toLocaleString('es-CO')}) ${unidad}${comprador?' — '+comprador:''}`;
+    reg = {...reg, valor, modoVenta, primera, segunda, pica, precioPrimera, precioSegunda, precioPica, comprador, detalle, cant: primera+segunda+pica};
+
+  } else {
+    const valor = parseFloat(document.getElementById('rValor').value);
+    const detalle = document.getElementById('rDetalle').value.trim();
+    const cant = parseFloat(document.getElementById('rCant').value)||null;
+    if(!valor||!detalle) { toast('⚠️ Completa detalle y valor'); return; }
+    reg = {...reg, valor, detalle, cant};
+  }
+
+  // Upload factura if selected
+  if(pendingFacturaFile && cloudMode && storage) {
+    try {
+      toast('⏳ Subiendo factura…');
+      const path = `proyectos/${proyectoActual.id}/facturas/${Date.now()}_${pendingFacturaFile.name}`;
+      const ref = storage.ref(path);
+      await ref.put(pendingFacturaFile);
+      reg.facturaUrl = await ref.getDownloadURL();
+      reg.facturaPath = path;
+      reg.facturaNombre = pendingFacturaFile.name;
+    } catch(e) { toast('⚠️ Factura no subida: '+e.message); }
+  }
+
+  // Save or update
+  if(editingRegId) {
+    // UPDATE existing
+    if(cloudMode && db) {
+      await db.collection('proyectos').doc(proyectoActual.id).collection('registros').doc(editingRegId).update(reg);
+    } else {
+      if(editingRegIdx!==null) registros[editingRegIdx] = {...registros[editingRegIdx], ...reg};
+      localStorage.setItem(LOCAL_KEY+'_registros_'+proyectoActual.id, JSON.stringify(registros));
+      updateProyectoStats(); renderRegistrosTable(); renderDashboard();
+    }
+    toast('✅ Registro actualizado');
+  } else {
+    // CREATE new
+    if(cloudMode && db) {
+      await db.collection('proyectos').doc(proyectoActual.id).collection('registros').add(reg);
+    } else {
+      registros.unshift(reg);
+      localStorage.setItem(LOCAL_KEY+'_registros_'+proyectoActual.id, JSON.stringify(registros));
+      updateProyectoStats(); renderRegistrosTable(); renderDashboard();
+    }
+    toast('✅ Registro guardado'+(cloudMode?' en la nube':' local'));
+  }
+
+  resetFormRegistro();
+}
+
+function resetFormRegistro() {
+  editingRegId = null; editingRegIdx = null; pendingFacturaFile = null;
+  document.getElementById('formRegistroTitle').textContent = 'Nuevo Registro';
+  document.getElementById('btnGuardarReg').textContent = '➕ Agregar registro';
+  document.getElementById('btnCancelarEdit').style.display = 'none';
+  document.getElementById('rFecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('rCat').value = 'Preparación suelo';
+  onCatChange();
+  // Clear all fields
+  ['rValor','rCant','rNumJornales','rValorJornal','rPrimera','rSegunda','rPica','rPrecioPrimera','rPrecioSegunda','rPrecioPica'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['rDetalle','rTrabajador','rActividadMO','rComprador'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('facturaPreview').textContent = '';
+  document.getElementById('facturaZone').style.borderColor = '#cbd5e1';
+  document.getElementById('rFacturaFile').value = '';
+  document.getElementById('totalManoObra').textContent = '$0';
+  document.getElementById('totalVenta').textContent = '$0';
+  ['subtotalPrimera','subtotalSegunda','subtotalPica'].forEach(id=>document.getElementById(id).textContent='$0');
+}
+
+function cancelarEdicion() { resetFormRegistro(); }
+
+// ── Editar registro existente
+function editarRegistro(id, idx) {
+  const r = registros[idx];
+  if(!r) return;
+  editingRegId = id || null;
+  editingRegIdx = idx;
+
+  document.getElementById('formRegistroTitle').textContent = 'Editar Registro';
+  document.getElementById('btnGuardarReg').textContent = '💾 Guardar cambios';
+  document.getElementById('btnCancelarEdit').style.display = 'inline-flex';
+  document.getElementById('rFecha').value = r.fecha;
+  document.getElementById('rCat').value = r.cat;
+  onCatChange();
+
+  if(r.cat === 'Mano de Obra') {
+    if(r.tipoJornal) document.getElementById('rTipoJornal').value = r.tipoJornal;
+    if(r.numJornales) document.getElementById('rNumJornales').value = r.numJornales;
+    if(r.valorJornal) document.getElementById('rValorJornal').value = r.valorJornal;
+    if(r.trabajador) document.getElementById('rTrabajador').value = r.trabajador;
+    document.getElementById('rActividadMO').value = r.detalle || '';
+    calcManoObra();
+  } else if(r.cat === 'Ingresos') {
+    if(r.modoVenta) { document.getElementById('rModoVenta').value = r.modoVenta; onModoVentaChange(); }
+    if(r.primera) document.getElementById('rPrimera').value = r.primera;
+    if(r.segunda) document.getElementById('rSegunda').value = r.segunda;
+    if(r.pica) document.getElementById('rPica').value = r.pica;
+    if(r.precioPrimera) document.getElementById('rPrecioPrimera').value = r.precioPrimera;
+    if(r.precioSegunda) document.getElementById('rPrecioSegunda').value = r.precioSegunda;
+    if(r.precioPica) document.getElementById('rPrecioPica').value = r.precioPica;
+    if(r.comprador) document.getElementById('rComprador').value = r.comprador;
+    calcVenta();
+  } else {
+    document.getElementById('rValor').value = r.valor || '';
+    document.getElementById('rCant').value = r.cant || '';
+    document.getElementById('rDetalle').value = r.detalle || '';
+  }
+
+  if(r.facturaUrl) {
+    document.getElementById('facturaPreview').textContent = '📎 '+( r.facturaNombre||'Ver adjunto');
+    document.getElementById('facturaZone').style.borderColor = 'var(--verde-claro)';
+  }
+
+  // Scroll to form
+  document.getElementById('sec-registros').scrollIntoView({behavior:'smooth'});
 }
 
 function renderRegistrosTable() {
@@ -1932,16 +2257,25 @@ function renderRegistrosTable() {
     if(search&&!r.detalle.toLowerCase().includes(search)&&!r.cat.toLowerCase().includes(search)) return false;
     return true;
   });
-  document.getElementById('registrosTable').innerHTML=filtered.map((r,i)=>`
-    <tr>
+  document.getElementById('registrosTable').innerHTML=filtered.map((r,i)=>{
+    const idx=registros.indexOf(r);
+    // Build detail display
+    let detailExtra = '';
+    if(r.cat==='Mano de Obra' && r.tipoJornal) detailExtra = `<div style="font-size:10px;color:var(--gris-claro)">${r.tipoJornal}${r.numJornales?' · '+r.numJornales+' jornal(es)':''}${r.trabajador?' · '+r.trabajador:''}</div>`;
+    if(r.cat==='Ingresos' && r.modoVenta) detailExtra = `<div style="font-size:10px;color:var(--gris-claro)">${r.modoVenta==='racimo'?'Racimos':'Arrobas'}: 1ª ${r.primera||0} · 2ª ${r.segunda||0} · Pica ${r.pica||0}</div>`;
+    const tieneAdj = r.facturaUrl ? `<span title="Ver factura" style="cursor:pointer" onclick="window.open('${r.facturaUrl}','_blank')">📎</span> ` : '';
+    return `<tr>
       <td>${fmtD(r.fecha)}</td>
-      <td style="max-width:220px">${r.detalle}</td>
+      <td style="max-width:200px">${tieneAdj}${r.detalle}${detailExtra}</td>
       <td>${catBadge(r.cat)}</td>
       <td style="text-align:center">${r.cant||'—'}</td>
-      <td style="font-family:'DM Mono',monospace;color:${r.cat==='Ingresos'?'var(--verde-claro)':'var(--gris)'}">${r.cat==='Ingresos'?'+':''}${fmt(r.valor)}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteReg('${r.id||''}',${registros.indexOf(r)})">✕</button></td>
-    </tr>
-  `).join('');
+      <td style="font-family:'DM Mono',monospace;font-weight:500;color:${r.cat==='Ingresos'?'var(--verde-claro)':'var(--gris)'}">${r.cat==='Ingresos'?'+':''}${fmt(r.valor)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-outline btn-sm" onclick="editarRegistro('${r.id||''}',${idx})" style="margin-right:4px">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteReg('${r.id||''}',${idx})">✕</button>
+      </td>
+    </tr>`;
+  }).join('');
   document.getElementById('tableCount').textContent=`${filtered.length} registros | Total: ${fmt(filtered.reduce((s,r)=>s+r.valor,0))}`;
 }
 
